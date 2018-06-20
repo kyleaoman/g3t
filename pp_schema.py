@@ -2,11 +2,11 @@ import os
 from peewee import *
 
 
-database = SqliteDatabase(os.environ.get('DB'))
+db = SqliteDatabase(os.environ.get('DB'))
 
 class BaseModel(Model):
     class Meta:
-        database = database
+        database = db
 
     
 
@@ -32,8 +32,8 @@ class FoF(BaseModel):
     c200c = FloatField()
 
 
-    fossilness_M = FloatField()
-    fossilness_m = FloatField()
+    fossilness_mcent = FloatField()
+    fossilness_msat = FloatField()
     fossilness = FloatField()
 
     virialness_W = FloatField()
@@ -49,3 +49,8 @@ class FoF(BaseModel):
 class Galaxy(BaseModel):
     galaxy_id = BigIntegerField()
     fof = ForeignKeyField(FoF, backref='galaxies')
+
+tables = [Simulation,Snap,FoF,Galaxy]
+
+for table in tables:
+    db.create_tables([table])
