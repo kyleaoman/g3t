@@ -1,15 +1,3 @@
-SSH_HOST='di29bop2@c2paplogin.lrz.de'
-INTRO="module load python/3.5_anaconda_nompi"
-SCRATCH=/gpfs/work/pr86re/di29bop2
-BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao
-TARGET=ciao2
-SQL=/tmp/ciao_1e4_22_06_2018.sql
-TOSQL=tmp/ciao.sql
-PYTHON=python3
-NAME=/HydroSims/Magneticum/Box0/mr_bao/ 
-SNAP=037
-PROP=c200c
-
 set -v
 F=$SCRATCH/$TARGET
 ssh $SSH_HOST mkdir -p $F

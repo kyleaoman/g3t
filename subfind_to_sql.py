@@ -55,11 +55,11 @@ def main():
     parser.add_argument('--tag', type=str,help='tag for snapshot', required=True)
     parser.add_argument('--snap', type=str,help='snap___', required=True)
 
-    parser.add_argument('--min-field', type=str, default="GLEN", required=True)
-    parser.add_argument('--min-val', type=float, default=1e4, required=True)
+    parser.add_argument('--min-field', type=str, default="GLEN")
+    parser.add_argument('--min-val', type=float, default=0.)
 
 
-    parser.add_argument('--add-fof', type=str2bool, default=True, required=True)
+    parser.add_argument('--add-fof', type=str2bool, default=True)
 
     parser.add_argument('--add-sf-bounds', type=str2bool, default=False)
 
