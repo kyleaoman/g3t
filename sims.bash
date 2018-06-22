@@ -4,7 +4,13 @@ function db_1e5(){
     export LIM=1e4
 }
 
+function db_1e5_22j(){
+    export DB=/tmp/ciao_1e4_22_06_2018.sql
+    export LIM=1e4
+}
+
 function Box0mr_bao(){
+    export PYTHON=python3
     export INTRO="module load python/3.5_anaconda_nompi"
     export NAME=/HydroSims/Magneticum/Box0/mr_bao/
     export SSH_HOST='di29bop2@c2paplogin.lrz.de'

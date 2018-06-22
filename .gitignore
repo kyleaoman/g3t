@@ -1,5 +1,7 @@
 data/
 test/
+output/
+logs/
 *~
 __pycache__
 

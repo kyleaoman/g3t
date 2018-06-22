@@ -106,18 +106,19 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1.):
 
 
 def fossilness(masses, dists):
-    if len(masses)==0 or len(dists)==0:
+    try:
+
+
+
+
+        sorted_ids_d=np.arange(len(masses))[np.argsort(dists)]
+        first_mass=masses[sorted_ids_d[0]]
+        other_ids=sorted_ids_d[1:]
+        others_masses=masses[other_ids]
+        most_massive_not_first=np.max(others_masses)
+        return O(first_mass=first_mass, most_massive_not_first=most_massive_not_first,fossilness=first_mass/most_massive_not_first)
+    except: #WHAT COULD POSSIBLY GO WRONG
         return  O(first_mass=np.nan, most_massive_not_first=np.nan,fossilness=np.nan)
-
-
-
-    sorted_ids_d=np.arange(len(masses))[np.argsort(dists)]
-    first_mass=masses[sorted_ids_d[0]]
-    other_ids=sorted_ids_d[1:]
-    others_masses=masses[other_ids]
-    most_massive_not_first=np.max(others_masses)
-    return O(first_mass=first_mass, most_massive_not_first=most_massive_not_first,fossilness=first_mass/most_massive_not_first)
-
 
 def resize_order_and_sort(my_data, gpos, radius,cut=None):
 
@@ -460,12 +461,12 @@ def myDecorator(func):
     _cache = {}
     def cache(*a,**b):
         self = a # Reference to the class who owns the method
+        
         if self not in _cache:
             _cache[self]={}
         cached = _cache[self]
         key = json.dumps({ "b":b})
         if key not in cached:
-            #            print ("caching ",func.__name__,a[0], a[1:], b)
             cached[key] = func(*a,**b)
             #print ("returning ",func.__name__,a[0], a[1:], b)
         return cached[key]
@@ -474,6 +475,7 @@ def myDecorator(func):
 
 class myMetaClass(type):
     def __new__(cls, name, bases, local):
+        #print("new meta")
         for attr in local:
             if attr[0]=='_' or not callable(local[attr]):
                 continue
@@ -492,7 +494,7 @@ class Queue(object):
     def __contains__(self, key):
         return key in self.keys()
     def __getitem__(self, key):
-        if key not in self:
+        if key not in self.keys():
             raise Exception("No cached item with key '%s'"%(key))
         i=-1
         for _key in self.keys():
@@ -503,7 +505,7 @@ class Queue(object):
     def __setitem__(self, key, value):
         if key in self:
             del self[key]
-        self.items.append((key, value))
+        self.items.insert(0,(key, value))
         self.items = self.items[:self.size]
         return value
     def __delitem__(self, key):
@@ -512,9 +514,10 @@ class Queue(object):
 
 _cache_fofs = Queue(10)        
 
-class PostProcessing(object):
-    __metaclass__ = myMetaClass
+class PostProcessing(object, metaclass=myMetaClass):
+    __metaclass__ =    myMetaClass
     def __init__(self, **kw):
+        #print("__init__")
         for k in kw:
             self.__dict__[k]=kw[k]
 
@@ -532,8 +535,7 @@ class PostProcessing(object):
     subfind_files_range = None
     def fof_file(self,i_file):
         filename = '%s.%d'%(self.group_base,i_file)
-        if self.use_cache and filename in _cache_fofs:
-            #print("USE CACHE FOR", filename)
+        if self.use_cache and (filename in _cache_fofs.keys()):
             return _cache_fofs[filename]
         else:
             _cache_fofs[filename]=g.GadgetFile(filename, is_snap=False)
@@ -610,8 +612,8 @@ class PostProcessing(object):
     def rcri(self):   return self.fof()["RCRI"]
     dm = False
     def read_new(self):
-        all =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'], self.rcri(), self.snap_all_blocks,[0,1,2,3,4,5], only_joined_ptypes=False)
-        gas =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'], self.rcri(), self.snap_gas_blocks,[0])
+        all =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'], self.rcri(), self.snap_all_blocks+self.snap_gas_blocks,[0,1,2,3,4,5], only_joined_ptypes=False)
+        gas =  all[0] #g.read_particles_in_box(self.snap_base, self.fof()['GPOS'], self.rcri(), self.snap_gas_blocks,[0])
         for k in gas:
             all[0][k]= gas[k]
         return all

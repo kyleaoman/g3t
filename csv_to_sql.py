@@ -28,21 +28,28 @@ def main():
     import numpy as np
     import json
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--basegroup', type=str, help='base file name of groups', required=True)
-    parser.add_argument('--basesnap', type=str, help='base file name of snaps', required=True)
     parser.add_argument('--simulation-name', type=str,help='name of simulation', required=True)
     parser.add_argument('--snap', type=str,help='snap___', required=True)
     parser.add_argument('--outfile', type=str,help='outputgile', required=True)
-
-    parser.add_argument('--chunk', type=int, required=True)
-    parser.add_argument('--chunks', type=int, required=True)
-    parser.add_argument('--restart', action='store_true', default=False)
-
-
-    parser.add_argument('--props', type=str, nargs='+', required=True)
+    parser.add_argument('--map',type=str, nargs='+',default=[])
     args = parser.parse_args()
     for k in args.__dict__:
         printf("%s %s\n"%(k,str(args.__dict__[k])),e=True)
+
+    header=None
+    rows=[]
+    with open(args.outfile,'r') as f:
+        row={}
+        for line in f:
+            if line[0]=='#':
+                if header is None:
+                    header=line.split()
+                    header[0]=header[0][1:] #remove hash at beginning of haeader line
+            else:
+                fields = line.split()
+                for ikey in range(len(header)):
+                    row[key] = 
+            
     args.outfile = args.outfile+'.'+str(args.chunk)
     last_id_cluster = None
 

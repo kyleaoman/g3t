@@ -724,7 +724,7 @@ class GadgetFile(object):
            
 
        (f_read, f_data) = self.get_block(g_name, ptype, f_parts, p_start)
-
+       
        if f_read != f_parts:
             raise IOError("Read of " + self._filename + " asked for " + str(
                     f_parts) + " particles but got " + str(f_read))
@@ -1088,6 +1088,8 @@ def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center
         pkey=pkey[use_block]
 
         for block in iterate(blocks):
+            if block!='MASS' and not f.blocks[block].ptypes[ptype]:
+                continue
             if block not in res[ptype]:
                 res[ptype][block]=[]
 
@@ -1097,12 +1099,11 @@ def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center
 
                 o=okey[i]+f.get_start_part(block, ptype)
                 p=pkey[i]
-
                 x=f.read(block, ptype, p,p_start=o)
                 res[ptype][block].append(x)
     for ptype in iterate(ptypes):
         for block in iterate(blocks):
-            if len(res[ptype][block])>0:
+            if block in res[ptype] and len(res[ptype][block])>0:
                 res[ptype][block] = np.concatenate(res[ptype][block])
             else:
                 res[ptype][block] = np.array([])
@@ -1132,13 +1133,13 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
         ifr=np.array(list(map(lambda x: math.floor(x), (fr-corner)*fac)   )    ,dtype=np.int64)
         ito=np.array(list(map(lambda x: math.ceil(x), (to-corner)*fac)    )   ,dtype=np.int64)
         keylist=[]
-
         for i in range(ifr[0]-1,ito[0]+1):
             for j in range(ifr[1]-1,ito[1]+1):
                 for k in range(ifr[2]-1,ito[2]+1):
                     #print(i,j,k)
                     keylist.append(peano_hilbert_key(hkey, i,j,k, integer_pos=True))
         if has_super_index:
+
             return read_particles_given_key(snap_file_name,blocks,keylist,ptypes=ptypes,
                                             center=ce,periodic=hkey.header.BoxSize, join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
         else:
