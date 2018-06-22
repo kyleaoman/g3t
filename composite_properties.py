@@ -27,23 +27,32 @@ def main():
     import numpy as np
     import json
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--basegroup', type=str, help='base file name of groups')
-    parser.add_argument('--basesnap', type=str, help='base file name of snaps')
-    parser.add_argument('--simulation-name', type=str,help='name of simulation')
-    parser.add_argument('--tag', type=str,help='tag for snapshot')
-    parser.add_argument('--snap', type=str,help='snap___')
+    parser.add_argument('--basegroup', type=str, help='base file name of groups', required=True)
+    parser.add_argument('--basesnap', type=str, help='base file name of snaps', required=True)
+    parser.add_argument('--simulation-name', type=str,help='name of simulation', required=True)
+    parser.add_argument('--snap', type=str,help='snap___', required=True)
 
-    parser.add_argument('--chunk', type=int)
-    parser.add_argument('--chunks', type=int)
+    parser.add_argument('--chunk', type=int, required=True)
+    parser.add_argument('--chunks', type=int, required=True)
 
 
-    parser.add_argument('--prop', type=str)
+    parser.add_argument('--prop', type=str, required=True)
     args = parser.parse_args()
     for k in args.__dict__:
         print(k,args.__dict__[k])
 
 
     simulation = Simulation.get_or_none(name=args.simulation_name)
+    if simulation is None:
+        printf("No snap found with name=%s. List:\n"%(args.simulation_name),e=True)
+        sims = Simulation.select()
+        printf("ciao1\n",e=True);
+        for sim in sims:
+            printf("ciao2\n");
+            printf("Name: %s\n"%(sim.name),e=True)
+            printf("ciao3\n",e=True);
+        sys.exit(1)
+
     snap = simulation.snaps.where(Snap.name==args.snap).first()
     if snap is None:
         printf("No snap found with name=%s\n"%(args.snap))

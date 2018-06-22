@@ -1126,11 +1126,11 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
         bits=hkey.header.flag_feedback
         #if debug: print hkey.header.__dict__
         #print(fr,to)
-        fr=np.array(map(lambda x: min(x[0],x[1]), np.array([fr,to]).T))
-        to=np.array(map(lambda x: max(x[0],x[1]), np.array([fr,to]).T))
+        fr=np.array(list(map(lambda x: min(x[0],x[1]), np.array([fr,to]).T)))
+        to=np.array(list(map(lambda x: max(x[0],x[1]), np.array([fr,to]).T)))
         nkeys=1
-        ifr=np.array(map(lambda x: math.floor(x), (fr-corner)*fac)       ,dtype=np.int64)
-        ito=np.array(map(lambda x: math.ceil(x), (to-corner)*fac)       ,dtype=np.int64)
+        ifr=np.array(list(map(lambda x: math.floor(x), (fr-corner)*fac)   )    ,dtype=np.int64)
+        ito=np.array(list(map(lambda x: math.ceil(x), (to-corner)*fac)    )   ,dtype=np.int64)
         keylist=[]
 
         for i in range(ifr[0]-1,ito[0]+1):

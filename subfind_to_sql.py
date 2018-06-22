@@ -50,16 +50,16 @@ def main():
     import numpy as np
     import json
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--basename', type=str, help='base file name of groups')
-    parser.add_argument('--simulation-name', type=str,help='name of simulation')
-    parser.add_argument('--tag', type=str,help='tag for snapshot')
-    parser.add_argument('--snap', type=str,help='snap___')
+    parser.add_argument('--basename', type=str, help='base file name of groups', required=True)
+    parser.add_argument('--simulation-name', type=str,help='name of simulation', required=True)
+    parser.add_argument('--tag', type=str,help='tag for snapshot', required=True)
+    parser.add_argument('--snap', type=str,help='snap___', required=True)
 
-    parser.add_argument('--min-field', type=str, default="GLEN")
-    parser.add_argument('--min-val', type=float, default=1e4)
+    parser.add_argument('--min-field', type=str, default="GLEN", required=True)
+    parser.add_argument('--min-val', type=float, default=1e4, required=True)
 
 
-    parser.add_argument('--add-fof', type=str2bool, default=True)
+    parser.add_argument('--add-fof', type=str2bool, default=True, required=True)
 
     parser.add_argument('--add-sf-bounds', type=str2bool, default=False)
 
