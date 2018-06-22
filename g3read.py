@@ -14,7 +14,6 @@ This library has not been tested and is distributed without any warranty. Have f
 Antonio Ragagnin.
 
 """
-import ConfigParser
 import numpy as np
 import struct
 import sys
@@ -33,6 +32,8 @@ debug=False
 # if it is not 6
 N_TYPE = 6
 
+magneticum_info = {'FSUB': ('FSUB', 'LONG    ', 1, 1, 0, 0, 0, 0, 0), 'GRNR': ('GRNR', 'LONG    ', 1, 0, 1, 0, 0, 0, 0), 'SLUM': ('SLUM', 'FLOATN  ', 12, 0, 1, 0, 0, 0, 0), 'MVIR': ('MVIR', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'SCM ': ('SCM ', 'FLOATN  ', 3, 0, 1, 0, 0, 0, 0), 'SVEL': ('SVEL', 'FLOATN  ', 3, 0, 1, 0, 0, 0, 0), 'M25K': ('M25K', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'NCON': ('NCON', 'LONG    ', 1, 1, 0, 0, 0, 0, 0), 'GPOS': ('GPOS', 'FLOATN  ', 3, 1, 0, 0, 0, 0, 0), 'VMAX': ('VMAX', 'FLOAT   ', 1, 0, 1, 0, 0, 0, 0), 'R5CC': ('R5CC', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'GOFF': ('GOFF', 'LONG    ', 1, 1, 0, 0, 0, 0, 0), 'BGMA': ('BGMA', 'FLOAT   ', 1, 0, 0, 0, 1, 0, 0), 'MSUB': ('MSUB', 'FLOAT   ', 1, 0, 1, 0, 0, 0, 0), 'DSUB': ('DSUB', 'FLOAT   ', 1, 0, 1, 0, 0, 0, 0), 'MCON': ('MCON', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'M500': ('M500', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'RCRI': ('RCRI', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'SSUB': ('SSUB', 'LONG    ', 1, 0, 1, 0, 0, 0, 0), 'MBID': ('MBID', 'LLONG   ', 1, 0, 1, 0, 0, 0, 0), 'SOFF': ('SOFF', 'LONG    ', 1, 0, 1, 0, 0, 0, 0), 'BGPO': ('BGPO', 'FLOATN  ', 3, 0, 0, 0, 1, 0, 0), 'MGAS': ('MGAS', 'FLOATN  ', 6, 1, 0, 0, 0, 0, 0), 'BGRA': ('BGRA', 'FLOAT   ', 1, 0, 0, 0, 1, 0, 0), 'MCRI': ('MCRI', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'YGAS': ('YGAS', 'FLOATN  ', 6, 1, 0, 0, 0, 0, 0), 'SMST': ('SMST', 'FLOATN  ', 6, 0, 1, 0, 0, 0, 0), 'SSFR': ('SSFR', 'FLOAT   ', 1, 0, 1, 0, 0, 0, 0), 'SZ  ': ('SZ  ', 'FLOAT   ', 1, 0, 1, 0, 0, 0, 0), 'R200': ('R200', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'SLEN': ('SLEN', 'LONG    ', 1, 0, 1, 0, 0, 0, 0), 'SLOB': ('SLOB', 'FLOATN  ', 12, 0, 1, 0, 0, 0, 0), 'TGAS': ('TGAS', 'FLOATN  ', 6, 1, 0, 0, 0, 0, 0), 'SAGE': ('SAGE', 'FLOAT   ', 1, 0, 1, 0, 0, 0, 0), 'SLAT': ('SLAT', 'FLOATN  ', 12, 0, 1, 0, 0, 0, 0), 'SPOS': ('SPOS', 'FLOATN  ', 3, 0, 1, 0, 0, 0, 0), 'RMAX': ('RMAX', 'FLOAT   ', 1, 0, 1, 0, 0, 0, 0), 'MSTR': ('MSTR', 'FLOATN  ', 6, 1, 0, 0, 0, 0, 0), 'MTOT': ('MTOT', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'M200': ('M200', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'M5CC': ('M5CC', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'SPIN': ('SPIN', 'FLOATN  ', 3, 0, 1, 0, 0, 0, 0), 'R500': ('R500', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'GLEN': ('GLEN', 'LONG    ', 1, 1, 0, 0, 0, 0, 0), 'R25K': ('R25K', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'DUST': ('DUST', 'FLOATN  ', 11, 0, 1, 0, 0, 0, 0), 'PID ': ('PID ', 'LLONG   ', 1, 0, 0, 1, 0, 0, 0), 'RVIR': ('RVIR', 'FLOAT   ', 1, 1, 0, 0, 0, 0, 0), 'LGAS': ('LGAS', 'FLOATN  ', 6, 1, 0, 0, 0, 0, 0), 'SMHI': ('SMHI', 'FLOAT   ', 1, 0, 1, 0, 0, 0, 0), 'RHMS': ('RHMS', 'FLOAT   ', 1, 0, 1, 0, 0, 0, 0), 'NSUB': ('NSUB', 'LONG    ', 1, 1, 0, 0, 0, 0, 0)}
+
 def iterable(arg):
     return isinstance(arg, collections.Iterable) and not isinstance(arg, six.string_types)
 
@@ -48,10 +49,20 @@ def _to_raw(s):
     else:
         return s
 
+def _to_str(s):
+    if sys.version_info[0] > 2:
+        return s.decode('utf-8')
+    else:
+        return s
+
+
+_b = _to_raw
+_s = _to_str
+
 def printf(s,e=False):
     fd=sys.stderr if e else sys.stdout
     fd.write(s)
-
+ 
 
 def periodic_axis(x,   periodic=None, center_c=None):
                     dx=np.array(x-center_c)
@@ -67,7 +78,11 @@ def join_res(res, blocks,  join_ptypes, only_joined_ptypes):
         if join_ptypes:
             res[-1]={}
             for block in iterate(blocks):
-                res[-1][block] =np.concatenate(tuple([res[i][block] for i in res if i!=-1 and len(res[i][block])>0]));
+                t = [res[i][block] for i in res if i!=-1 and len(res[i][block])>0]
+                if len(t)>0:
+                    res[-1][block] =np.concatenate(tuple(t))
+                else:
+                    res[-1][block] =np.array([])
         if only_joined_ptypes:
             if iterable(blocks):
                 res = res[-1]
@@ -308,11 +323,12 @@ class GadgetFile(object):
             block = GadgetBlock()
 
             (name, block.length) = self.read_block_head(fd)
+            #name = _s(name.decode('ascii'))
 
             if name == "    ":
                 break
             # Do special things for the HEAD block
-            if name[0:4] == b"HEAD":
+            if name[0:4] == "HEAD":
                 if block.length != 256:
                     raise IOError("Mis-sized HEAD block in " + filename)
                 self.header = fd.read(256)
@@ -328,11 +344,11 @@ class GadgetFile(object):
                         ((self.header.npart != 0) * (self.header.mass == 0)).sum()==0):
                     # The "Spec" says that if all the existing particle masses
                     # are in the header, we shouldn't have a MASS block
-                    self.block_names.remove(b"MASS")
+                    self.block_names.remove("MASS")
                 continue
             # Set the partlen, using our amazing heuristics
             success = False
-            if name[0:4] == b"POS " or name[0:4] == b"VEL ":
+            if name[0:4] == "POS " or name[0:4] == "VEL ":
                 if block.length == t_part * 24:
                     block.partlen = 24
                     block.data_type = np.float64
@@ -341,7 +357,7 @@ class GadgetFile(object):
                     block.data_type = np.float32
                 block.ptypes = self.header.npart != 0
                 success = True
-            elif name[0:4] == b"ID  ":
+            elif name[0:4] == "ID  ":
                 # Heuristic for long (64-bit) IDs
                 if block.length == t_part * 4:
                     block.partlen = 4
@@ -390,17 +406,19 @@ class GadgetFile(object):
             self.blocks[name[0:4]] = block
 
             if not success and name=="INFO":
- 	        self.info = {}
-	        il = 4+8+4*7
+                self.info = {}
+                il = 4+8+4*7
                 oldpos = fd.tell()
-		nblocks = block.length/il
-		for i in range(nblocks):
-	                fd.seek(block.start+il*i)
-              		b = fd.read(il)
-                	s= struct.unpack(self.endian+'4s8s7i', b)
-			self.info[s[0]]=s 	
+                nblocks = block.length//il
+                for i in range(nblocks):
+                    fd.seek(block.start+il*i)
+                    b = fd.read(il)
+                    s= list(struct.unpack(self.endian+'4s8s7i', b))
+                    s[0]=_s(s[0])
+                    s[1]=_s(s[1])
+                    self.info[s[0]]=s     
                 fd.seek(oldpos)
-		success=True
+                success=True
                 
             if not success:
                 pass
@@ -492,20 +510,18 @@ class GadgetFile(object):
             if len(head) != 5 * 4:
                 return ("    ", 0)
             head = struct.unpack(self.endian + 'I4sIII', head)
-#            print("head[1]=", head)
             if head[0] != 8 or head[3] != 8 or head[4] != head[2] - 8:
-
-                print IOError(
+                raise IOError(
                     "Corrupt header record. Possibly incorrect file format",head)
                 return ("____", 0)
 
             # Don't include the two "record_size" indicators in the total
             # length count
-            return (head[1], head[2] - 8)
+            return (_s(head[1]), head[2] - 8)
         else:
             record_size = fd.read(4)
             if len(record_size) != 4:
-                return ("____", 0)
+                return (_b("____"), 0)
             (record_size,) = struct.unpack(self.endian + 'I', record_size)
             try:
                 name = self.block_names[0]
@@ -520,7 +536,7 @@ class GadgetFile(object):
     def get_block(self, name, ptype, p_toread, p_start=None):
         """Get a particle range from this file, starting at p_start,
         and reading a maximum of p_toread particles"""
-        name = _to_raw(name)
+        #name = _to_raw(name)
 
         p_read = 0
         cur_block = self.blocks[name]
@@ -559,7 +575,7 @@ class GadgetFile(object):
             if name not in self.blocks:
                 return 0
             cur_block = self.blocks[name]
-            return (cur_block.ptypes * self.header.npart)[0:ptype].sum().astype(long)
+            return (cur_block.ptypes * self.header.npart)[0:ptype].sum().astype(int)
 
     def get_block_dims(self, name):
         """Get the dimensionality of the block, eg, 3 for POS, 1 for most other things"""
@@ -643,13 +659,16 @@ class GadgetFile(object):
                     res[ptype]={}
                 f_data = self.read(block, ptype)
                 res[ptype][block] = f_data
+
         return  join_res(res, blocks, join_ptypes, only_joined_ptypes)
 
 
 
     def read(self, block, ptype, p_toread=None, p_start=None, periodic=_periodic, center=None):
+
        if(debug):
             printf("g3.read: reading '%s'/%s/'%s'\n"%(self._filename, str(block), str(ptype)), e=True)
+
        if block=='MASS' and self.header.mass[ptype]>0:
             if p_toread == None:
                 return np.zeros(self.header.npart[ptype])+self.header.mass[ptype]
@@ -658,21 +677,23 @@ class GadgetFile(object):
                 return np.zeros(l)+self.header.mass[ptype]
 
 
-       if (sys.version_info > (3, 0)):
-            g_name = bytes(block,'ascii')
-       else:
-            g_name = block
+       g_name = block
+
 
        if g_name=="INFO" or self.info is None:
            
            dtype=np.float32
            partlen = self.blocks[g_name].partlen
            if g_name=="ID  ":
-           	dtype=np.uint64
+               dtype=np.uint64
            dim = np.dtype(dtype).itemsize
            cols = partlen/dim
            #print("    ",g_name, "dtype", dtype, "dim", dim, "cols", cols)
        else:
+           info = self.info
+           if g_name not in self.info:
+               raise Exception("block not found %s"%g_name)
+
            binfo = self.info[g_name]
            stype = binfo[1]
            sdim = binfo[2]
@@ -694,13 +715,16 @@ class GadgetFile(object):
                      IF strcmp(type,"DOUBLEN ") THEN bytes_per_element = 8*ndim
            """
            
-           #print("INFO", g_name, "dtype", dtype, dtype.itemsize, "stype", stype)
+           #print("INFO", g_name, "dtype", dtype, dtype.itemsize, "stype", stype, "cols", cols, "partlen",partlen)
+
        if p_toread is None: 
            f_parts = self.get_block_parts(g_name, ptype)
        else:
            f_parts = p_toread
            
+
        (f_read, f_data) = self.get_block(g_name, ptype, f_parts, p_start)
+
        if f_read != f_parts:
             raise IOError("Read of " + self._filename + " asked for " + str(
                     f_parts) + " particles but got " + str(f_read))
@@ -764,28 +788,28 @@ class GadgetFile(object):
         # This has ref. semantics so use copy
         head = copy.deepcopy(head_in)
         head.npart = np.array(self.header.npart)
-        data = self.write_block_header(b"HEAD", 256)
+        data = self.write_block_header("HEAD", 256)
         data += head.serialize()
         if filename == None:
             filename = self._filename
         # a mode will ignore the file position, and w truncates the file.
         try:
             fd = open(filename, "r+b")
-        except IOError as (err, strerror):
+        except IOError as err:
             # If we couldn't open it because it doesn't exist open it for
             # writing.
             if err == errno.ENOENT:
                 fd = open(filename, "w+b")
             # If we couldn't open it for any other reason, reraise exception
             else:
-                raise IOError(err, strerror)
+                raise IOError(err)
         fd.seek(0)  # Header always at start of file
         # Write header
         fd.write(data)
         # Seek 48 bytes forward, to skip the padding (which may contain extra
         # data)
         fd.seek(48, 1)
-        data = self.write_block_footer(b"HEAD", 256)
+        data = self.write_block_footer("HEAD", 256)
         fd.write(data)
         fd.close()
 

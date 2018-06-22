@@ -7,6 +7,8 @@ import json
 import scipy
 import scipy.optimize
 
+
+
 class O(object):
     def __init__(self, **kw):
         for k in kw:
@@ -104,6 +106,11 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1.):
 
 
 def fossilness(masses, dists):
+    if len(masses)==0 or len(dists)==0:
+        return  O(first_mass=np.nan, most_massive_not_first=np.nan,fossilness=np.nan)
+
+
+
     sorted_ids_d=np.arange(len(masses))[np.argsort(dists)]
     first_mass=masses[sorted_ids_d[0]]
     other_ids=sorted_ids_d[1:]
@@ -264,6 +271,8 @@ def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass
     return O(W=W,K=K,Es=Es, eta=-(2.*K-Es)/W, beta=-2.*K/W)
 
 
+
+
 def gravitational_potential(masses, positions, gpos,
                             cut=None,
                             cut_type=None,
@@ -283,7 +292,6 @@ def gravitational_potential(masses, positions, gpos,
 
 
     Nall=len(all_data[-1]['MASS'])
-
 
 
     import math
@@ -475,6 +483,34 @@ class myMetaClass(type):
                 local[attr] = myDecorator(value)
         return type.__new__(cls, name, bases, local)
 
+class Queue(object):
+    def __init__(self,size):
+        self.items = []
+        self.size=size
+    def keys(self):
+        return [item[0] for  item in self.items]
+    def __contains__(self, key):
+        return key in self.keys()
+    def __getitem__(self, key):
+        if key not in self:
+            raise Exception("No cached item with key '%s'"%(key))
+        i=-1
+        for _key in self.keys():
+            i=i+1
+            if key==_key:
+                return self.items[i][1]
+        raise Exception("No cached item with key '%s'"%(key))
+    def __setitem__(self, key, value):
+        if key in self:
+            del self[key]
+        self.items.append((key, value))
+        self.items = self.items[:self.size]
+        return value
+    def __delitem__(self, key):
+        del self.items[self.keys().index(key)]
+        
+
+_cache_fofs = Queue(10)        
 
 class PostProcessing(object):
     __metaclass__ = myMetaClass
@@ -484,7 +520,8 @@ class PostProcessing(object):
 
 
 
-    
+    use_cache = True
+
     n_files = 10
     has_keys = False
     fof_blocks = ['MCRI','GPOS','RCRI']
@@ -492,8 +529,15 @@ class PostProcessing(object):
     snap_all_blocks = ['POS ','VEL ','MASS','ID  ']
     snap_gas_blocks = ['U   ','TEMP']
     subfind_and_fof_same_file = False
-
-    def fof_file(self,i_file):    return g.GadgetFile('%s.%d'%(self.group_base,i_file), is_snap=False)
+    subfind_files_range = None
+    def fof_file(self,i_file):
+        filename = '%s.%d'%(self.group_base,i_file)
+        if self.use_cache and filename in _cache_fofs:
+            #print("USE CACHE FOR", filename)
+            return _cache_fofs[filename]
+        else:
+            _cache_fofs[filename]=g.GadgetFile(filename, is_snap=False)
+            return _cache_fofs[filename]
     def satellites(self):
         cluster_id=self.cluster_id
         keys=self.sf_blocks
@@ -501,19 +545,26 @@ class PostProcessing(object):
         just_found=False
         first_file = 0
         last_file = self.n_files+1
-        if self.subfind_and_fof_same_file:
+        if self.subfind_files_range:
+            first_file = self.subfind_files_range[0]
+            last_file = self.subfind_files_range[1]
+        elif self.subfind_and_fof_same_file:
             first_file = self.i_file-1
             if first_file<0: first_file=0
             last_file = self.i_file+1
         else:
             first_file = 0
             last_file = self.n_files
-        for i1_file in range(first_file,last_file):
+        #print('range', (first_file, last_file+1), range(first_file, last_file+1))
+        for i1_file in range(first_file, last_file+1):
             f=self.fof_file(i1_file)
+            #print(f._filename)
             fof_ids=f.read_new('GRNR',1)
+            #print(np.unique(fof_ids))
             if just_found==True and cluster_id not in fof_ids: 
                 break
             if cluster_id in fof_ids:
+                #print("!")
                 if just_found is False:
                     for key in keys:
                         satellites[key]= f.read_new(key,1)[fof_ids==cluster_id] #satellites may be on different files, but always contiguous in files
@@ -521,7 +572,7 @@ class PostProcessing(object):
                     for key in keys:
                         satellites[key]=np.concatenate((satellites[key],f.read_new(key,1)[fof_ids==cluster_id]),axis=0)
                 just_found=True
-            return satellites
+        return satellites
     def header(self):
         return self.fof_file(0).header
     def box_size(self):
@@ -535,6 +586,7 @@ class PostProcessing(object):
             keys=self.fof_blocks
         for key in keys:
             res[key] = f.read_new(key,0)[cluster_id_in_file]
+        #print ("cluster id in file", cluster_id_in_file)
         return res
     def z(self):
         return self.header().redshift
@@ -545,16 +597,13 @@ class PostProcessing(object):
             radius = self.rcri()
             if 'SPOS' in satellites:
                 positions = satellites['SPOS']
-                positions=g.periodic(positions,center=self.fof()['GPOS'],periodic=size)
+                positions = g.periodic(positions,center=self.fof()['GPOS'],periodic=size)
                 gpos= self.fof()['GPOS']
                 distances = np.sqrt((positions[:,0]-gpos[0])**2.+(positions[:,1]-gpos[1])**2.+(positions[:,2]-gpos[2])**2.)
+                #print(distances)
                 stellar_masses = satellites['SMST'][:,4]
                 
                 mask_distances = distances<radius
-
-                if len(stellar_masses[mask_distances])==0: return O(M=np.nan,m=np.nan,fossilness=np.nan)
-            else:
-                return O(M=np.nan,m=np.nan,fossilness=np.nan)
 
             return fossilness(stellar_masses[mask_distances],distances[mask_distances])
     def mcri(self):   return self.fof()["MCRI"]
