@@ -6,6 +6,7 @@ import math
 import json
 import scipy
 import scipy.optimize
+from six import with_metaclass
 
 
 
@@ -514,10 +515,9 @@ class Queue(object):
 
 _cache_fofs = Queue(10)        
 
-class PostProcessing(object, metaclass=myMetaClass):
-    __metaclass__ =    myMetaClass
+class PostProcessing(with_metaclass(myMetaClass, object)):
+
     def __init__(self, **kw):
-        #print("__init__")
         for k in kw:
             self.__dict__[k]=kw[k]
 

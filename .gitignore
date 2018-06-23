@@ -3,5 +3,8 @@ test/
 output/
 logs/
 *~
+Magneticum/
+cache*
+*.csv
 __pycache__
 
