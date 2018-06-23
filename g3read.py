@@ -24,18 +24,23 @@ import errno
 import itertools
 import collections
 import os
-import six
 import math
+import sys
+
 
 debug=False
-# This is set here and not in a config file because too many things break
-# if it is not 6
 N_TYPE = 6
 
+PY3 = sys.version_info[0] == 3
+
+if PY3:
+    string_types = str,
+else:
+    string_types = basestring,
 
 
 def iterable(arg):
-    return isinstance(arg, collections.Iterable) and not isinstance(arg, six.string_types)
+    return isinstance(arg, collections.Iterable) and not isinstance(arg, string_types)
 
 def iterate(arg):
     if iterable(arg):

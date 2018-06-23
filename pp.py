@@ -168,6 +168,8 @@ def fix_v(data,gpos,d=60.,H0=0.1):
 
 
 
+
+
 def to_spherical(xyzt,center,ptype='bo'):
     #takes list xyz (single coord)
     import math
@@ -642,3 +644,12 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
 
                 
 
+def pint():
+    from pint import UnitRegistry
+    u = UnitRegistry()
+    u.define('Msun = 1.99885e30kg')
+    u.define('cmass = 1e10 Msun/hubble') 
+    u.define('clength = kpc/hubble*scale_factor5~')
+    u.define('cvelocity_a = (scale_factor**0.5)*km/s')
+    u.define('cvelocity_noa = km/s')
+    return u

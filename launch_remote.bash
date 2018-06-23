@@ -4,7 +4,7 @@ echo F=$F
 ssh $SSH_HOST mkdir -p $F
 ssh $SSH_HOST mkdir -p $F/tmp
 ssh $SSH_HOST mkdir -p $F/output
-rsync -arv --exclude=__pycache__ --cvs-exclude --exclude=output --exclude=logs --exclude=tmp .  $SSH_HOST:$F 
+rsync -arv --exclude='.*' --exclude=__pycache__ --exclude=Magneticum --cvs-exclude --exclude=output --exclude=logs --exclude=tmp .  $SSH_HOST:$F 
 rsync -v --checksum $DB $SSH_HOST:$F/$TOSQL
 ssh $SSH_HOST $INTRO '&&' cd $F '&&' pwd
 OUTPUT=output/$MEMO$(echo $NAME|sed s,/,_,g)_$PROP

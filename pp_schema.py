@@ -1,7 +1,7 @@
 import os
 from peewee import *
 
-print(os.environ.get('DB'))
+
 db = SqliteDatabase(os.environ.get('DB'))
 
 class BaseModel(Model):

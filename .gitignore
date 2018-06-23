@@ -6,5 +6,6 @@ logs/
 Magneticum/
 cache*
 *.csv
+.*
 __pycache__
 
