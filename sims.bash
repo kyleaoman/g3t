@@ -15,6 +15,8 @@ function Box0mr_bao(){
     export NAME=/HydroSims/Magneticum/Box0/mr_bao/
     export SSH_HOST='di29bop2@c2paplogin.lrz.de'
     export INTRO="module load python/3.5_anaconda_nompi"
+    export SBATCH="llsubmit"
+    export TEMPLATE="c2papjob.ll"
     export SCRATCH=/gpfs/work/pr86re/di29bop2
     export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao
     export TOSQL=tmp/magneticum.sql
