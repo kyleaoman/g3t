@@ -11,11 +11,12 @@ function db_1e5_22j(){
 
 function Box0mr_bao(){
     export PYTHON=python3
-    export INTRO="module load python/3.5_anaconda_nompi"
+    export INTRO="module load python/3.5_intel" #module load python/3.5_anaconda_nompi"
     export NAME=/HydroSims/Magneticum/Box0/mr_bao/
     export SSH_HOST='di29bop2@c2paplogin.lrz.de'
-    export INTRO="module load python/3.5_anaconda_nompi"
     export SBATCH="llsubmit"
+    #export MPIRUN="mpirun -n 1 -ppn 1"
+    export MPIRUN=""
     export TEMPLATE="c2papjob.ll"
     export SCRATCH=/gpfs/work/pr86re/di29bop2
     export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao

@@ -26,23 +26,33 @@ def main():
     import json
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-s', type=str, help='batch system, e.g. llsubmit or sbatch', default='llsubmit')
-    parser.add_argument('-p', type=str, nargs='+', help='job paramas', default=[])
     parser.add_argument('-f', type=str, help='job file template. append the command at the end of the file', required=True)
+    parser.add_argument('-x', type=str, nargs='+', help='str', required=True)
 
-    #args = parser.parse_args()
-    args, unknownargs = parser.parse_known_args()
 
-    if len(args.p)>0:
-        raise Error("-p not implemented yet :(")
+    args = parser.parse_args()
+
+    args.x=' '.join(args.x)
+    #args, unknownargs = parser.parse_known_args()
 
     fd = tempfile.NamedTemporaryFile(delete=False)
     fd.close()
+
+    fd2 = tempfile.NamedTemporaryFile(delete=False)
+    fd2.close()
+
     shutil.copyfile(args.f,fd.name)
 
+    printf("Job filename: %s\n"% fd.name, e=True)
+    printf("x: %s\n"% args.x, e=True)
+
+
+
     with open(fd.name,'a') as f:
-        f.write(' '.join(unknownargs)+'\n')
+        f.write(''.join(args.x)+'\n')
 
 
+    
     os.system('%s %s'%(args.s,fd.name))
 
 

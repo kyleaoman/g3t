@@ -1,8 +1,8 @@
 #!/bin/bash
 #@ job_type = parallel
 #@ class = fat
-#@ wall_clock_limit = 12:00:00
-#@ job_name = non_di_solo_pane_vive_l_uomo
+#@ wall_clock_limit = 24:00:00
+#@ job_name = non
 #@ node = 1
 #@ tasks_per_node = 1
 #@ output = job_$(jobid).out
@@ -14,6 +14,13 @@
 
 . /etc/profile
 . /etc/profile.d/modules.sh
+
+module load idl
+module load idl 2>/dev/null
+module unload python 2>/dev/null
+module unload mpi.ibm 2>/dev/null
+
+#module load python/2.7_anaconda_mpi
 
 echo $0 
 cat $0
