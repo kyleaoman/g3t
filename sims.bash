@@ -13,6 +13,7 @@ function Box0mr_bao(){
     export PYTHON=python3
     export INTRO="module load python/3.5_intel" #module load python/3.5_anaconda_nompi"
     export NAME=/HydroSims/Magneticum/Box0/mr_bao/
+    export BOXNAME="Box0mr"
     export SSH_HOST='di29bop2@c2paplogin.lrz.de'
     export SBATCH="llsubmit"
     #export MPIRUN="mpirun -n 1 -ppn 1"

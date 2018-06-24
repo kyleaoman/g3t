@@ -1,5 +1,10 @@
 #set -v
 F=$SCRATCH/$TARGET
+OUTPUT=output/$(echo $NAME|sed s,/,_,g)_${TAG}_$(echo "$PROP"|sed 's, ,_,g')
+mkdir -p logs
+echo $OUTPUT
+exit
+
 echo F=$F
 ssh $SSH_HOST mkdir -p $F
 ssh $SSH_HOST mkdir -p $F/tmp
@@ -7,8 +12,8 @@ ssh $SSH_HOST mkdir -p $F/output
 rsync -arv --exclude='.*' --exclude=__pycache__ --exclude=Magneticum --cvs-exclude --exclude=output --exclude=logs --exclude=tmp .  $SSH_HOST:$F 
 rsync -v --checksum $DB $SSH_HOST:$F/$TOSQL
 ssh $SSH_HOST $INTRO '&&' cd $F '&&' pwd
-OUTPUT=output/$MEMO$(echo $NAME|sed s,/,_,g)_$PROP
-mkdir -p logs
+
+
 
 export CHUNKS=20
 export TASKS=5
