@@ -2,9 +2,7 @@
 F=$SCRATCH/$TARGET
 OUTPUT=output/$(echo $NAME|sed s,/,_,g)_${TAG}_$(echo "$PROP"|sed 's, ,_,g')
 mkdir -p logs
-echo $OUTPUT
-exit
-
+echo OUTPUT=$OUTPUT
 echo F=$F
 ssh $SSH_HOST mkdir -p $F
 ssh $SSH_HOST mkdir -p $F/tmp

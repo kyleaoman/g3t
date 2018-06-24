@@ -33,3 +33,4 @@ where fof.snap_id='$SNAP_ID' AND  mcri<(
 "
 
 python subfind_to_sql.py  --basename $NAME  --snap $SNAP --simulation-name $NAME --tag $TAG  --add-fof 0 --add-sf-bounds 1
+#python subfind_to_sql.py  --basename $NAME  --snap $SNAP --simulation-name $NAME --tag $TAG  --add-fof 0 --add-sf-bounds 0 --add-sf-data 

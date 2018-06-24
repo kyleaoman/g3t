@@ -9,19 +9,23 @@ function db_1e5_22j(){
     export LIM=1e4
 }
 
-function Box0mr_bao(){
+function onc2pap(){
     export PYTHON=python3
     export INTRO="module load python/3.5_intel" #module load python/3.5_anaconda_nompi"
-    export NAME=/HydroSims/Magneticum/Box0/mr_bao/
-    export BOXNAME="Box0mr"
     export SSH_HOST='di29bop2@c2paplogin.lrz.de'
     export SBATCH="llsubmit"
     #export MPIRUN="mpirun -n 1 -ppn 1"
     export MPIRUN=""
     export TEMPLATE="c2papjob.ll"
     export SCRATCH=/gpfs/work/pr86re/di29bop2
-    export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao
     export TOSQL=tmp/magneticum.sql
+}
+
+function Box0mr_bao(){
+    onc2pap
+    export NAME=/HydroSims/Magneticum/Box0/mr_bao/
+    export BOXNAME="Box0mr"
+    export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao
 }
 
 function Box0mr_bao_z0(){
@@ -53,4 +57,41 @@ function Box0mr_bao_z2(){
     Box0mr_bao
     export TAG=z2
     export SNAP=010
+}
+
+function Box2bhr_bao(){
+    onc2pap
+    export NAME=/HydroSims/Magneticum/Box2b/hr_bao/
+    export BOXNAME="Box2bhr"
+    export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box2b/hr_bao
+
+}
+
+function Box2bhr_bao_z0(){
+    Box2bhr_bao
+    export TAG=z0
+    export SNAP=031
+}
+
+function Box2bhr_bao_z05(){
+    Box2bhr_bao
+    export TAG=z05
+    export SNAP=026
+}
+
+function Box2bhr_bao_z1(){
+    Box2bhr_bao
+    export TAG=z1
+    export SNAP=015
+}
+
+function Box2bhr_bao_z15(){
+    Box2bhr_bao
+    export TAG=z15
+    export SNAP=012
+}
+function Box2bhr_bao_z2(){
+    Box2bhr_bao
+    export TAG=z2
+    export SNAP=011
 }
