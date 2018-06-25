@@ -1,6 +1,7 @@
 
 function db_1e5(){
-    export DB=/tmp/ciao_1e4_23_06_2018.sql
+#    export DB=/tmp/ciao_1e4_23_06_2018.sql
+    export DB=/tmp/antonio/magneticum.sql
     export LIM=1e4
 }
 
@@ -126,7 +127,7 @@ function Box4uhr_bao_z0(){
 
 function Box4uhr_bao_z05(){
     Box4uhr_bao
-    export TAG=z0
+    export TAG=z05
     export SNAP=096
 }
 
