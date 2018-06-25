@@ -6,7 +6,7 @@ function db_1e5(){
 }
 
 function db_1e5_22j(){
-    export DB=/tmp/ciao_1e4_22_06_2018.sql
+    export DB=/tmp/antonio/magneticum.sql
     export LIM=1e4
 }
 

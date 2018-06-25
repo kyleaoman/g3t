@@ -190,7 +190,7 @@ def main():
             printf("Galaxies: N=%d/%d, from cluster %d to cluster %d\n"%(nsfs,len(grnrs), np.min(props["grnr"]), np.max(props["grnr"])))
             n_inserts = 0
             with db.atomic():
-                n_insert_per_chunk=30
+                n_insert_per_chunk=15
                 for idx in range(0, len(lprops)+ n_insert_per_chunk, n_insert_per_chunk):
                     chunk = lprops[idx:idx + n_insert_per_chunk]
                     if len(chunk)>0:
