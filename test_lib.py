@@ -22,7 +22,7 @@ def printf(s,e=False):
 
 
 """ TEST READ A SNAPSHOT """
-"""
+
 f = g.GadgetFile("./test/snap_132")
 
 data = f.read_new(blocks=["POS ","MASS"], ptypes=[0,1,2,3,4,5])
@@ -33,14 +33,14 @@ mass = data["MASS"]*1.e10
 
 heatmap(x,y,mass)
 
-"""
+
 """ TEST READ MAGNETICUM SIMS """
 
 
 snapbase = '/HydroSims/Magneticum/Box2/hr_bao/snapdir_136/snap_136'
 groupbase = '/HydroSims/Magneticum/Box2/hr_bao/groups_136/sub_136'
 
-"""
+
 fof =  g.GadgetFile(groupbase+'.0', is_snap=False)
 halo_positions = fof.read("GPOS",0)
 halo_radii = fof.read("RVIR",0)
@@ -55,7 +55,7 @@ y=f["POS "][:,1]
 mass =f["MASS"]
 heatmap(x,y,mass)
 
-"""
+
 
 """ TEST READ MAGNETICUM SIMS """
 
@@ -90,9 +90,3 @@ for ifile  in range(nfiles):
         printf(" virialness = %s\n"% str(cluster_data.virialness()))
         printf(" c200c = %s\n"% str(cluster_data.c200c()))
         printf("\n")
-"""
-
-pp.get_cluster_properties(['z','fossilness','c200c','virialness','rcri','mcri'],snap=e['snap'],absolute_cluster_id=e['abso\
-lute_cluster_id'],cluster_id_in_file=e['cluster_id_in_file'], group_base=e['group_base'], cluster_i_file=e['i_file'], n_files=e['i_file']+5, subfind_and_fof\
-_same_file=True,i_file=e['i_file'],run='bao')
-"""

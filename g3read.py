@@ -422,6 +422,8 @@ class GadgetFile(object):
                     s[0]=_s(s[0])
                     s[1]=_s(s[1])
                     self.info[s[0]]=s     
+                    if (debug):
+                        print("block='%s' type='%s' size='%d' ptype=%d %d %d %d %d %d"%(s[0],s[1],s[2],s[3],s[4],s[5],s[6],s[7],s[8]))
                 fd.seek(oldpos)
                 success=True
                 
@@ -550,10 +552,16 @@ class GadgetFile(object):
         if p_toread > parts:
             p_toread = parts
         fd = open(self._filename, 'rb')
+        if (debug):
+            print("partlen=", cur_block.partlen)
         fd.seek(cur_block.start + int(cur_block.partlen * p_start), 0)
         # This is just so that we can get a size for the type
         dt = np.dtype(cur_block.data_type)
+        if (debug):
+            print("p_toread", p_toread, "cur_block.partlen", cur_block.partlen, " dt.itemsize",dt.itemsize)
         n_type = p_toread * cur_block.partlen // dt.itemsize
+        if (debug):
+            print("read dtype=", cur_block.data_type, " n_type=", n_type)
         data = np.fromfile(
             fd, dtype=cur_block.data_type, count=n_type, sep='')
         if self.endian != '=':
@@ -568,8 +576,12 @@ class GadgetFile(object):
             return 0
         cur_block = self.blocks[name]
         if ptype == -1:
+            if (debug):
+                print("cur block length=", cur_block.length," cur_block.partlen=",cur_block.partlen,"result", cur_block.length // cur_block.partlen)
             return cur_block.length // cur_block.partlen
         else:
+            if (debug):
+                print(" self.header.npart[ptype] =", self.header.npart[ptype] ," cur_block.ptypes[ptype]",  cur_block.ptypes[ptype]," res",  self.header.npart[ptype] * cur_block.ptypes[ptype])
             return self.header.npart[ptype] * cur_block.ptypes[ptype]
 
     def get_start_part(self, name, ptype):
@@ -703,14 +715,14 @@ class GadgetFile(object):
            stype = binfo[1]
            sdim = binfo[2]
            cols=1
-           partlen = self.blocks[g_name].partlen
            if stype=="FLOAT   ": dtype = np.float32
-           if stype=="FLOATN  ": dtype,cols = np.dtype(np.float32),partlen/np.dtype(np.float32).itemsize
+           if stype=="FLOATN  ": dtype,cols = np.float32,sdim
            if stype=="LONG    ": dtype=np.int32
            if stype=="LLONG   ": dtype=np.int64
            if stype=="DOUBLE  ": dtype=np.float64
-           if stype=="DOUBLEN ": dtype,cols=np.dtype(np.float64),partlen/np.dtype(np.float64).itemsize
-
+           if stype=="DOUBLEN ": dtype,cols=np.float64,sdim
+           self.blocks[g_name].partlen = dtype().nbytes*cols
+           partlen = self.blocks[g_name].partlen 
            """ from readnew.pro:
                      IF strcmp(type,"FLOAT   ") THEN bytes_per_element = 4
                      IF strcmp(type,"FLOATN  ") THEN bytes_per_element = 4*ndim
@@ -720,20 +732,32 @@ class GadgetFile(object):
                      IF strcmp(type,"DOUBLEN ") THEN bytes_per_element = 8*ndim
            """
            
-           #print("INFO", g_name, "dtype", dtype, dtype.itemsize, "stype", stype, "cols", cols, "partlen",partlen)
+           if (debug):
+               print("INFO", g_name, "dtype", dtype, dtype.itemsize, "stype", stype, "cols", cols, "partlen",partlen)
 
        if p_toread is None: 
+           if (debug):
+               print("get block parts()")
            f_parts = self.get_block_parts(g_name, ptype)
        else:
            f_parts = p_toread
            
+       if (debug):
+           print(f_parts, p_start)
+            
+
 
        (f_read, f_data) = self.get_block(g_name, ptype, f_parts, p_start)
+
        
        if f_read != f_parts:
             raise IOError("Read of " + self._filename + " asked for " + str(
                     f_parts) + " particles but got " + str(f_read))
+       if(debug):
+           print(f_data.shape, cols, len(f_data)/cols)
        f_data.dtype = dtype
+       if(debug):
+           print(f_data.shape, cols, len(f_data)/cols)
        if cols>1: f_data.shape = (len(f_data)/cols,cols)
        #print("shape", f_data.shape)
        #print("shape", f_data.dtype, dtype)
