@@ -7,6 +7,7 @@ import json
 import scipy
 import scipy.optimize
 from six import with_metaclass
+import matplotlib.pyplot as plt
 
 
 
@@ -120,7 +121,7 @@ def fossilness(masses, dists):
         return O(first_mass=first_mass, most_massive_not_first=most_massive_not_first,fossilness=first_mass/most_massive_not_first)
     except: #WHAT COULD POSSIBLY GO WRONG
         return  O(first_mass=np.nan, most_massive_not_first=np.nan,fossilness=np.nan)
-
+"""
 def resize_order_and_sort(my_data, gpos, radius,cut=None):
 
     if cut is None:
@@ -138,8 +139,28 @@ def resize_order_and_sort(my_data, gpos, radius,cut=None):
         else:
             my_data[pt]['DIST']=[]
     return my_data
+"""
 
 
+def resize(my_data, gpos, radius,cut=None):
+
+    if cut is None:
+        cut=radius
+    for pt in my_data.keys():
+        poses=my_data[pt]['POS ']
+        if (len(poses))>0:
+            delta=poses-gpos
+            dists=np.sqrt(delta[:,0]**2+delta[:,1]**2+delta[:,2]**2)
+            
+            mask_dist=dists<cut
+            for k in my_data[pt].keys():
+                my_data[pt][k]= my_data[pt][k][mask_dist]
+            my_data[pt]['DIST']=dists[mask_dist]
+        else:
+            my_data[pt]['DIST']=[]
+    return my_data
+
+"""
 def add_dist(my_data, gpos):
 
     for pt in my_data.keys():
@@ -150,6 +171,21 @@ def add_dist(my_data, gpos):
             my_data[pt]['DIST']=dists
         else:
             my_data[pt]['DIST']=[]
+    return my_data
+"""
+def add_cut(my_data, gpos, cut):
+
+    for pt in my_data.keys():
+        #print(pt, my_data[pt])
+        poses=my_data[pt]['POS ']
+        if (len(poses))>0:
+            delta=poses-gpos
+            dists2=delta[:,0]**2+delta[:,1]**2+delta[:,2]**2
+            mask = dists2<(cut*cut)
+            for k in my_data[pt].keys():
+                if len( my_data[pt][k])>0:
+                        my_data[pt][k]= my_data[pt][k][mask]
+
     return my_data
 
 def fix_v(data,gpos,d=60.,H0=0.1):
@@ -170,10 +206,11 @@ def fix_v(data,gpos,d=60.,H0=0.1):
 
 
 
-def to_spherical(xyzt,center,ptype='bo'):
+def to_spherical(xyzt,center):
     #takes list xyz (single coord)
     import math
     xyz = xyzt.T
+    #print("xyzt", xyz)
     x       = xyz[0]-center[0]
     y       = xyz[1]-center[1]
     z       = xyz[2]-center[2]
@@ -223,7 +260,8 @@ def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass
 
     if cut is None:
         cut = rcri
-    resize_order_and_sort(all_data,center,rcri,cut=cut)
+    #resize_order_and_sort(all_data,center,rcri,cut=cut)
+    resize(all_data,center,rcri,cut=cut)
     fix_v(all_data,center,H0=H0,d=velcut)
 
     spherical_potential = all_potential
@@ -279,6 +317,7 @@ def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass
 
 def gravitational_potential(masses, positions, gpos,
                             cut=None,
+                            spherical=None,
                             cut_type=None,
                             superkeys=True, G=47003.1,
                             set_to_value_after_cut=None,
@@ -289,11 +328,12 @@ def gravitational_potential(masses, positions, gpos,
     all_data[-1]["MASS"]=masses
     all_data[-1]["POS "]=positions
 
-    all_sferical = to_spherical(all_data[-1]["POS "], gpos)
+    if spherical is None:
+        all_sferical = to_spherical(all_data[-1]["POS "], gpos)
+    else:
+        all_sferical = spherical
 
     all_data[-1]["SPOS"] = all_sferical
-    add_dist(all_data, gpos)
-
 
     Nall=len(all_data[-1]['MASS'])
 
@@ -302,13 +342,15 @@ def gravitational_potential(masses, positions, gpos,
     twopi=2.*math.pi
     pi=math.pi
     """    POTENTIAL    """
+    #print all_data[-1]['SPOS']
+    #print(np.min(all_data[-1]['SPOS'][:,0]),np.max(all_data[-1]['SPOS'][:,0]))
     spher_bs = [np.logspace(np.log10(np.min(all_data[-1]['SPOS'][:,0])+0.01),np.log10(np.max(all_data[-1]['SPOS'][:,0])),spher_nbs),np.linspace(0.,pi,spher_nteta), np.linspace(-pi,pi,spher_nfi)]
 
 
     mass_weights = all_data[-1]['MASS']
     if cut is not None and cut_type is not None:
         if cut_type=="sphere":
-            mass_weights[all_data[-1]['DIST']>cut]=0.
+            mass_weights[all_data[-1]['SPOS'][:,0]>cut]=0.
         elif cut_type=="cube":
             mass_weights[np.abs(all_data[-1]['POS '][:,0]-gpos[0])>cut]=0.
             mass_weights[np.abs(all_data[-1]['POS '][:,1]-gpos[1])>cut]=0.
@@ -461,18 +503,20 @@ def myDecorator(func):
     " Used on methods to convert them to methods that replace themselves\
         with their return value once they are called. "
 
-    _cache = {}
+    _cache_objects = {}
     def cache(*a,**b):
-        self = a # Reference to the class who owns the method
+        self = a[0] # Reference to the class who owns the method
+        #print("self:",self)
+        if self not in _cache_objects:
+            _cache_objects[self]={}
+        #print("a=",a,"b",b)
+        args={"a":a[1:],"b":b}
+        key = json.dumps(args)
+        #print("key=",key)
         
-        if self not in _cache:
-            _cache[self]={}
-        cached = _cache[self]
-        key = json.dumps({ "b":b})
-        if key not in cached:
-            cached[key] = func(*a,**b)
-            #print ("returning ",func.__name__,a[0], a[1:], b)
-        return cached[key]
+        if key not in _cache_objects[self]:
+             _cache_objects[self][key] = func(*a,**b)
+        return  _cache_objects[self][key]
 
     return cache
 
@@ -527,14 +571,16 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
 
     use_cache = True
 
+    dm = False
     n_files = 10
     has_keys = False
     fof_blocks = ['MCRI','GPOS','RCRI']
     sf_blocks = ['SMST','SPOS','GRNR']
-    snap_all_blocks = ['POS ','VEL ','MASS','ID  ']
+    snap_all_blocks = ['POS ','VEL ','MASS']#,'ID  ']
     snap_gas_blocks = ['U   ','TEMP']
     subfind_and_fof_same_file = False
     subfind_files_range = None
+    random_subset_size = 2000
     def fof_file(self,i_file):
         filename = '%s.%d'%(self.group_base,i_file)
         if self.use_cache and (filename in _cache_fofs.keys()):
@@ -612,13 +658,16 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
             return fossilness(stellar_masses[mask_distances],distances[mask_distances])
     def mcri(self):   return self.fof()["MCRI"]
     def rcri(self):   return self.fof()["RCRI"]
-    dm = False
     def read_new(self):
-        all =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'], self.rcri(), self.snap_all_blocks+self.snap_gas_blocks,[0,1,2,3,4,5], only_joined_ptypes=False)
-        gas =  all[0] #g.read_particles_in_box(self.snap_base, self.fof()['GPOS'], self.rcri(), self.snap_gas_blocks,[0])
-        for k in gas:
-            all[0][k]= gas[k]
-        return all
+        all_data =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'],
+                                            self.rcri(),
+                                            self.snap_all_blocks+self.snap_gas_blocks,
+                                            [0,1,2,3,4,5], 
+                                            join_ptypes=False,
+                                            only_joined_ptypes=False)
+        add_cut(all_data, self.fof()['GPOS'], self.rcri())
+        g.join_res(all_data, self.snap_all_blocks+self.snap_gas_blocks,  True, False)
+        return all_data
     def c200c(self):
         fof_pos = self.fof()['GPOS']
         fof_r = self.fof()['RCRI']
@@ -627,8 +676,41 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
         dm_pos_data=dm_data['POS ']
         r=nfw_fit(dm_mass_data,dm_pos_data,fof_pos,fof_r)
         return O(**{"rho0":r.x[0],"c":1./r.x[1],"rs":r.x[1]*fof_r})
+    def spherical(self,ptype):
+        #print (ptype, self.read_new()[ptype]['POS '])
+        #print(self.read_new()[ptype])
+        return  to_spherical(self.read_new()[ptype]['POS '],self.fof()['GPOS'])
     def potential(self):
-        return gravitational_potential(self.read_new()[-1]["MASS"], self.read_new()[-1]["POS "], self.fof()["GPOS"])
+        spherical = self.spherical(-1)
+        #print("spherical", spherical)
+        return gravitational_potential(self.read_new()[-1]["MASS"], 
+                                       self.read_new()[-1]["POS "], 
+                                       self.fof()["GPOS"], 
+                                       cut=self.rcri(),
+                                       cut_type="sphere",
+                                       spherical=spherical
+        )
+    def pictures(self):
+        output_path = self.output_path
+        res = self.read_new()[-1]
+        n_particles = len(res["MASS"])
+        ids = np.random.choice(n_particles,self.random_subset_size,replace=False)
+        maskedpos = res["POS "][ids]
+        fig = plt.figure()  # a new figure window
+        ax = fig.add_subplot(1, 1, 1)
+        ax.scatter(maskedpos[:,0],maskedpos[:,1],s=1)
+        fig.savefig(output_path+'xy.png')
+
+        fig = plt.figure()  # a new figure window
+        ax = fig.add_subplot(1, 1, 1)
+        ax.scatter(maskedpos[:,1],maskedpos[:,2],s=1)
+        fig.savefig(output_path+'yz.png')
+
+        fig = plt.figure()  # a new figure window
+        ax = fig.add_subplot(1, 1, 1)
+        ax.scatter(maskedpos[:,1],maskedpos[:,2],s=1)
+        fig.savefig(output_path+'zx.png')
+
     def virialness(self):
         read_new = self.read_new()
         all_mass =read_new[-1]["MASS"]

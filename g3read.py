@@ -84,10 +84,15 @@ def join_res(res, blocks,  join_ptypes, only_joined_ptypes):
             res[-1]={}
             for block in iterate(blocks):
                 t = [res[i][block] for i in res if i!=-1 and len(res[i][block])>0]
+                #print("lent",len(t))
                 if len(t)>0:
                     res[-1][block] =np.concatenate(tuple(t))
                 else:
                     res[-1][block] =np.array([])
+            res[-1]['PTYPE']=np.concatenate(tuple(
+                [np.zeros(len(res[i][iterate(blocks)[0]]),dtype=np.int32)+i  for i in res if i!=-1]
+            ))
+            #print(res[-1])
         if only_joined_ptypes:
             if iterable(blocks):
                 res = res[-1]
@@ -1162,13 +1167,19 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
         ifr=np.array(list(map(lambda x: math.floor(x), (fr-corner)*fac)   )    ,dtype=np.int64)
         ito=np.array(list(map(lambda x: math.ceil(x), (to-corner)*fac)    )   ,dtype=np.int64)
         keylist=[]
+        """
         for i in range(ifr[0]-1,ito[0]+1):
             for j in range(ifr[1]-1,ito[1]+1):
                 for k in range(ifr[2]-1,ito[2]+1):
                     #print(i,j,k)
                     keylist.append(peano_hilbert_key(hkey, i,j,k, integer_pos=True))
-        if has_super_index:
+        """
+        for i in range(ifr[0],ito[0]+1):
+            for j in range(ifr[1],ito[1]+1):
+                for k in range(ifr[2],ito[2]+1):
+                    keylist.append(peano_hilbert_key(hkey, i,j,k, integer_pos=True))
 
+        if has_super_index:
             return read_particles_given_key(snap_file_name,blocks,keylist,ptypes=ptypes,
                                             center=ce,periodic=hkey.header.BoxSize, join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
         else:

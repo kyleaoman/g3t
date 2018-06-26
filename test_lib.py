@@ -22,7 +22,7 @@ def printf(s,e=False):
 
 
 """ TEST READ A SNAPSHOT """
-
+"""
 f = g.GadgetFile("./test/snap_132")
 
 data = f.read_new(blocks=["POS ","MASS"], ptypes=[0,1,2,3,4,5])
@@ -32,11 +32,11 @@ y = data["POS "][:,1]
 mass = data["MASS"]*1.e10
 
 heatmap(x,y,mass)
-
+"""
 
 """ TEST READ MAGNETICUM SIMS """
 
-
+"""
 snapbase = '/HydroSims/Magneticum/Box2/hr_bao/snapdir_136/snap_136'
 groupbase = '/HydroSims/Magneticum/Box2/hr_bao/groups_136/sub_136'
 
@@ -55,7 +55,7 @@ y=f["POS "][:,1]
 mass =f["MASS"]
 heatmap(x,y,mass)
 
-
+"""
 
 """ TEST READ MAGNETICUM SIMS """
 
@@ -79,7 +79,9 @@ for ifile  in range(nfiles):
             group_base = groupbase,
             snap_base = snapbase,
             n_files=nfiles,
-            subfind_and_fof_same_file=False
+            subfind_and_fof_same_file=False,
+            output_path='tmp/cheese_%d'%(icluster)
+            
         )
 
         printf(" id = %d\n"% cluster_data.cluster_id)
@@ -89,4 +91,6 @@ for ifile  in range(nfiles):
         printf(" fossilness = %s\n"% str(cluster_data.fossilness()))
         printf(" virialness = %s\n"% str(cluster_data.virialness()))
         printf(" c200c = %s\n"% str(cluster_data.c200c()))
+        printf(" pictures = %s\n"%         cluster_data.pictures())
+
         printf("\n")

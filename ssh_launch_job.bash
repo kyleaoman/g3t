@@ -14,16 +14,21 @@ ssh $SSH_HOST $INTRO '&&' cd $F '&&' pwd
 
 
 export CHUNKS=20
-export TASKS=5
+export TASKS=8
 
-YO="$INTRO
+function YO(){
+    DA=$1
+    A=$2
+    CHUNKS=$3
+    echo "$INTRO
 cd $F
 export DB=$TOSQL
-seq 0 $((CHUNKS-1)) |
+seq $DA $A |
 xargs -P$TASKS -n1 $MPIRUN $PYTHON composite_properties.py --basegroup $BASE/groups_$SNAP/sub_$SNAP --basesnap $BASE/snapdir_$SNAP/snap_$SNAP --simulation-name $NAME   --snap $SNAP  --chunks $CHUNKS  --prop $PROP --outfile $OUTPUT --restart --chunk " 
+}
 
+ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 0 19 20)\""
 
-ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$YO\""
 #> logs/$OUTPUT_$(date '+%Y_%m_%d_%H_%M_%S')
 
 mkdir -p output
