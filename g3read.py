@@ -412,7 +412,6 @@ class GadgetFile(object):
                         break
                     except ValueError:
                         continue
-
             self.blocks[name[0:4]] = block
 
             if not success and name=="INFO":
@@ -443,14 +442,14 @@ class GadgetFile(object):
         fd.close()
 
         # Make a mass block if one isn't found.
-        if is_snap and b'MASS' not in self.blocks:
+        if is_snap and 'MASS' not in self.blocks:
             block = GadgetBlock()
             block.length = 0
             block.start = 0
 
             #print(self.blocks)
             # Mass should be the same type as POS (see issue #321)
-            block.data_type = self.blocks[b'POS '].data_type
+            block.data_type = self.blocks['POS '].data_type
             block.partlen = np.dtype(block.data_type).itemsize
             self.blocks[b'MASS'] = block
 
