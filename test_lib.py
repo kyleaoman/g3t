@@ -85,6 +85,10 @@ for ifile  in range(nfiles):
         )
 
         printf(" id = %d\n"% cluster_data.cluster_id)
+        printf(" fof path = %s\n"%(groupbase))
+        printf(" position in fof file = %d\n"%(icluster_file))
+        printf(" n satellites = %d\n"%(len(cluster_data.satellites()['SPOS'])))
+        #print(cluster_data.satellites())
         printf(" mcri = %e\n"% cluster_data.mcri())
         printf(" rcri = %f\n"% cluster_data.rcri())
         printf(" z = %.2e\n"% cluster_data.z())

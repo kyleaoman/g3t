@@ -32,8 +32,9 @@ def main():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--simulation-name', type=str,help='name of simulation', required=True)
     parser.add_argument('--snap', type=str,help='snap___', required=True)
-    parser.add_argument('--outfile', type=str,help='outputgile', nargs='+', required=True)
+    parser.add_argument('--outfile', type=str,help='actually infiles', nargs='+', required=True)
     parser.add_argument('--map',type=str, nargs='+',default=[])
+    parser.add_argument('--csv-columns',type=str, nargs='+',default=None)
 
 
 
@@ -78,15 +79,21 @@ def main():
 drop table if exists {x};
 .import '{outfile}' {x}
 select count(*) from {x};
-        CREATE INDEX {x}_i  ON {x} (id_cluster);
-        CREATE INDEX {x}_i  ON {x} (id_cluster);
+        CREATE INDEX {x}_i  ON {x} ("#id_Cluster");
+        CREATE INDEX {x}_i  ON {x} ("#id_Cluster");
 
 .schema {x}
 .quit
 """.format(outfile=outfile, x='tmp'))
 
         for k in header:
-            printf("csv key=%s (%s)\n"%(k, cv[k]))
+            if args.csv_columns is not None and k not in args.csv_columns:
+                continue
+            if k in cv:
+                printf("csv key=%s (%s)\n"%(k, cv[k]))
+            else:
+                cv[k]=k
+                printf("csv key=%s \n"%(k))
 
             q = """
         update fof 
@@ -107,12 +114,19 @@ EXISTS (
 .quit
         """.format(outfile=outfile, x='tmp',k=k,v=cv[k],snap_id=snap.id, max_id_cluster=max_id_cluster, min_id_cluster = min_id_cluster)
             printf(q)
-            subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE).communicate(q)
+            child = subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE)
+            child.communicate(q)
+            estatus = child.returncode
+            if(estatus!=0):
+                raise Exception("squilite exited with nonzero exit status %d"%(estatus))
+        qdrop="""
+drop index  {x}_i;
+drop table {x};
 
-        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE).communicate("""
-drop table if exists {x};
 .quit
-""".format(outfile=outfile, x='tmp'))
+""".format(outfile=outfile, x='tmp')
+        print(qdrop)
+        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE).communicate(qdrop)
 
 
 if __name__ == "__main__":

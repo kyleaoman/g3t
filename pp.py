@@ -574,7 +574,7 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
     dm = False
     n_files = 10
     has_keys = False
-    fof_blocks = ['MCRI','GPOS','RCRI']
+    fof_blocks = ['MCRI','GPOS','RCRI','RVIR']
     sf_blocks = ['SMST','SPOS','GRNR']
     snap_all_blocks = ['POS ','VEL ','MASS']#,'ID  ']
     snap_gas_blocks = ['U   ','TEMP']
@@ -606,12 +606,16 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
             first_file = 0
             last_file = self.n_files
         #print('range', (first_file, last_file+1), range(first_file, last_file+1))
-        for i1_file in range(first_file, last_file+1):
+        i1_file=first_file-1 #, last_file+1):
+        while True:
+            i1_file+=1
             f=self.fof_file(i1_file)
-            #print(f._filename)
+            print(f._filename)
             fof_ids=f.read_new('GRNR',1)
             #print(np.unique(fof_ids))
             if just_found==True and cluster_id not in fof_ids: 
+                break
+            if np.min(fof_ids)>cluster_id:
                 break
             if cluster_id in fof_ids:
                 #print("!")
@@ -644,7 +648,7 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
             size=self.box_size()
             cluster_center = self.fof()['GPOS']
             satellites = self.satellites()
-            radius = self.rcri()
+            radius = self.fof()['RVIR']
             if 'SPOS' in satellites:
                 positions = satellites['SPOS']
                 positions = g.periodic(positions,center=self.fof()['GPOS'],periodic=size)
@@ -652,7 +656,7 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
                 distances = np.sqrt((positions[:,0]-gpos[0])**2.+(positions[:,1]-gpos[1])**2.+(positions[:,2]-gpos[2])**2.)
                 #print(distances)
                 stellar_masses = satellites['SMST'][:,4]
-                
+                print(stellar_masses)
                 mask_distances = distances<radius
 
             return fossilness(stellar_masses[mask_distances],distances[mask_distances])
@@ -708,7 +712,7 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
 
         fig = plt.figure()  # a new figure window
         ax = fig.add_subplot(1, 1, 1)
-        ax.scatter(maskedpos[:,1],maskedpos[:,2],s=1)
+        ax.scatter(maskedpos[:,2],maskedpos[:,0],s=1)
         fig.savefig(output_path+'zx.png')
 
     def virialness(self):
