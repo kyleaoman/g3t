@@ -753,12 +753,33 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
 
                 
 
-def pint():
+def pint(**defaults):
+    from pint import Context
     from pint import UnitRegistry
     u = UnitRegistry()
     u.define('Msun = 1.99885e30kg')
+    ureg.define("hubble = [hubbli]")
+    ureg.define("scalefactor = [scalefactori]")
     u.define('cmass = 1e10 Msun/hubble') 
-    u.define('clength = kpc/hubble*scale_factor5~')
-    u.define('cvelocity_a = (scale_factor**0.5)*km/s')
+    u.define('clength = kpc/hubble*scalefactor')
+    u.define('cvelocity_a = (scalefactor**0.5)*km/s')
     u.define('cvelocity_noa = km/s')
-    return u
+    c = Context('comoving',defaults={"hubble":None,"scalefactor":None})
+    def f_1(u,v,  hubble = None, scalefactor=None):
+        m=v.to(u.mylength).magnitude
+        if hubble is not None and scalefactor is not None:
+            return u.kpc*m*scalefactor/hubble
+        else:
+            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
+    def f_12u,v,  hubble = None, scalefactor=None):
+        m=v.to(u.kpc).magnitude
+        if hubble is not None and scalefactor is not None:
+            return u.clength*/scalefactor*hubble
+        else:
+            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
+    c.add_transformation('[length] * [scalefactori] / [hubbli]', '[length]',f_1)
+    c.add_transformation('[length]','[length] * [scalefactori] / [hubbli]', f_2)
+    if(len(defaults)>0):
+        ureg.add_context(c,**defaults)
+    return ureg
+
