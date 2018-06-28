@@ -761,8 +761,8 @@ class GadgetFile(object):
            print(f_data.shape, cols, len(f_data)/cols)
        f_data.dtype = dtype
        if(debug):
-           print(f_data.shape, cols, len(f_data)/cols)
-       if cols>1: f_data.shape = (len(f_data)/cols,cols)
+           print(block, ptype, f_data.shape,'cols', cols, 'f_data',len(f_data), 'f_data/cols', len(f_data)/cols)
+       if cols>1: f_data.shape = (len(f_data)//cols,cols)
        #print("shape", f_data.shape)
        #print("shape", f_data.dtype, dtype)
        if periodic is not None and block in _periodic and center is not None:

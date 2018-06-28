@@ -561,6 +561,8 @@ class Queue(object):
 
 _cache_fofs = Queue(10)        
 
+_fof_info = None
+
 class PostProcessing(with_metaclass(myMetaClass, object)):
 
     def __init__(self, **kw):
@@ -582,12 +584,21 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
     subfind_files_range = None
     random_subset_size = 2000
     def fof_file(self,i_file):
+        global _fof_info
         filename = '%s.%d'%(self.group_base,i_file)
-        if self.use_cache and (filename in _cache_fofs.keys()):
-            return _cache_fofs[filename]
-        else:
+        if not (self.use_cache and (filename in _cache_fofs.keys())):
             _cache_fofs[filename]=g.GadgetFile(filename, is_snap=False)
-            return _cache_fofs[filename]
+        f = _cache_fofs[filename]
+        if f.info is not None and _fof_info is None: 
+            _fof_info=f.info
+        if f.info is None and _fof_info is not  None:
+            f.info = _fof_info
+        if f.info is None and _fof_info is None:
+            self.fof_file(i_file-1)
+            f.info = _fof_info
+        if _fof_info is None:
+            raise Exception("unable to recover the fof.info block")
+        return f
     def satellites(self):
         cluster_id=self.cluster_id
         keys=self.sf_blocks
@@ -610,15 +621,18 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
         while True:
             i1_file+=1
             f=self.fof_file(i1_file)
-            print(f._filename)
             fof_ids=f.read_new('GRNR',1)
+            print('range', f._filename, 'fofs in file:', np.min(fof_ids), np.max(fof_ids))
+            #print(f.info["GRNR"])
             #print(np.unique(fof_ids))
             if just_found==True and cluster_id not in fof_ids: 
+                print('just ofunds! & cliuster_id not in fof_ids')
                 break
             if np.min(fof_ids)>cluster_id:
+                print('fof id range', np.min(fof_ids),np.max(fof_ids),'>','cluster_id',cluster_id)
                 break
             if cluster_id in fof_ids:
-                #print("!")
+                print("!")
                 if just_found is False:
                     for key in keys:
                         satellites[key]= f.read_new(key,1)[fof_ids==cluster_id] #satellites may be on different files, but always contiguous in files
@@ -626,6 +640,9 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
                     for key in keys:
                         satellites[key]=np.concatenate((satellites[key],f.read_new(key,1)[fof_ids==cluster_id]),axis=0)
                 just_found=True
+            if np.max(fof_ids)>cluster_id:
+                print('max fof id range', np.min(fof_ids),np.max(fof_ids),'>','cluster_id',cluster_id,'next file is useless')
+                break
         return satellites
     def header(self):
         return self.fof_file(0).header
@@ -649,17 +666,23 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
             cluster_center = self.fof()['GPOS']
             satellites = self.satellites()
             radius = self.fof()['RVIR']
+            has_satellites=False
             if 'SPOS' in satellites:
+                has_satellites=True
                 positions = satellites['SPOS']
                 positions = g.periodic(positions,center=self.fof()['GPOS'],periodic=size)
                 gpos= self.fof()['GPOS']
                 distances = np.sqrt((positions[:,0]-gpos[0])**2.+(positions[:,1]-gpos[1])**2.+(positions[:,2]-gpos[2])**2.)
                 #print(distances)
                 stellar_masses = satellites['SMST'][:,4]
-                print(stellar_masses)
+                #print(stellar_masses)
                 mask_distances = distances<radius
-
-            return fossilness(stellar_masses[mask_distances],distances[mask_distances])
+            if has_satellites:
+                return fossilness(stellar_masses[mask_distances],distances[mask_distances])
+            
+            else:
+                print (satellites)
+            return fossilness(np.nan, np.nan)
     def mcri(self):   return self.fof()["MCRI"]
     def rcri(self):   return self.fof()["RCRI"]
     def read_new(self):
