@@ -5,12 +5,12 @@
 #@ wall_clock_limit = 24:00:00
 #@ job_name = nograzie
 #@ node = 1
-#@ tasks_per_node = 1
+#@ tasks_per_node = 4
 #@ output = job_$(jobid).out
 #@ error = job_$(jobid).err
 #@ group = pr86re
 #@ node_usage = shared
-#@ resources = ConsumableCpus(20)
+#@ resources = ConsumableCpus(4)
 #@ queue
 
 . /etc/profile
