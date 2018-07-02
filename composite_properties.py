@@ -71,10 +71,10 @@ def main():
     if snap is None:
         printf("No snap found with name=%s\n"%(args.snap))
         sys.exit(1)
-    n_fofs_db = FoF.select().where(FoF.snap==snap).count()
+    n_fofs_db = FoF.select().where((FoF.snap==snap)&(FoF.resolvness==1)).count()
     page_size = n_fofs_db//(args.chunks-1)
     printf("Chunk%d N FoFs in snap database: %d\n"%(args.chunk, n_fofs_db),e=True)
-    page = FoF.select().where(FoF.snap==snap).order_by(FoF.id_cluster.asc()).paginate(args.chunk+1, page_size)
+    page = FoF.select().where((FoF.snap==snap)&(FoF.resolvness==1)).order_by(FoF.id_cluster.asc()).paginate(args.chunk+1, page_size)
     """
     s = lambda query: query.sql() #db.get_cursor().mogrify(*query.sql())
     for i in range(args.chunks):

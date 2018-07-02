@@ -113,7 +113,7 @@ def main():
 
     max_fof_id = None
     if args.add_sf_bounds or args.add_sf_data:
-        max_fof_id = FoF.select().where(FoF.snap==snap).order_by(FoF.glen.asc()).first().id_cluster
+        max_fof_id = FoF.select().where((FoF.snap==snap) & (FoF.resolvness==1)).order_by(FoF.glen.asc()).first().id_cluster
         args.min_val = 0
         printf("Max FoF ID: %d\n"%(max_fof_id))
     ifof = 0
@@ -143,6 +143,7 @@ def main():
 
             props["start_subfind_file"] = np.zeros(n_fof_groups)-1
             props["end_subfind_file"] = np.zeros(n_fof_groups)-1
+            props["resolvness"] = np.zeros(n_fof_groups)+1
 
             lprops  = flat_props(props, n_fof_groups)
             #print (props,lprops)

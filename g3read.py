@@ -708,7 +708,7 @@ class GadgetFile(object):
            if g_name=="ID  ":
                dtype=np.uint64
            dim = np.dtype(dtype).itemsize
-           cols = partlen/dim
+           cols = int(partlen/dim)
            #print("    ",g_name, "dtype", dtype, "dim", dim, "cols", cols)
        else:
            info = self.info
@@ -717,7 +717,7 @@ class GadgetFile(object):
 
            binfo = self.info[g_name]
            stype = binfo[1]
-           sdim = binfo[2]
+           sdim = int(binfo[2])
            cols=1
            if stype=="FLOAT   ": dtype = np.float32
            if stype=="FLOATN  ": dtype,cols = np.float32,sdim
@@ -762,7 +762,8 @@ class GadgetFile(object):
        f_data.dtype = dtype
        if(debug):
            print(block, ptype, f_data.shape,'cols', cols, 'f_data',len(f_data), 'f_data/cols', len(f_data)/cols)
-       if cols>1: f_data.shape = (len(f_data)//cols,cols)
+       #print(int(len(f_data)/cols), cols)
+       if cols>1: f_data.shape = (int(len(f_data)/cols),cols)
        #print("shape", f_data.shape)
        #print("shape", f_data.dtype, dtype)
        if periodic is not None and block in _periodic and center is not None:

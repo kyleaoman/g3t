@@ -10,6 +10,13 @@ from collections import OrderedDict as odict
 
 PY3 = sys.version_info[0] == 3
 
+
+if PY3:
+    def conv(s):
+        return str.encode(s)
+else:
+    def conv(s):
+        return s
 def printf(s,e=False,fd=None):
     if fd is None:
         fd=sys.stderr if e else sys.stdout
@@ -74,7 +81,7 @@ def main():
         print("grep -v '#' %s | sort -n  | head -n1 | awk '{print $1}'"%outfile)
         printf("File=%s, Fields: %s\n"%(outfile,','.join(header)))
 
-        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE).communicate("""
+        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE ).communicate(conv("""
 .separator " "
 drop table if exists {x};
 .import '{outfile}' {x}
@@ -84,7 +91,7 @@ select count(*) from {x};
 
 .schema {x}
 .quit
-""".format(outfile=outfile, x='tmp'))
+        """.format(outfile=outfile, x='tmp')))
 
         for k in header:
             if args.csv_columns is not None and k not in args.csv_columns:
@@ -115,7 +122,7 @@ EXISTS (
         """.format(outfile=outfile, x='tmp',k=k,v=cv[k],snap_id=snap.id, max_id_cluster=max_id_cluster, min_id_cluster = min_id_cluster)
             printf(q)
             child = subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE)
-            child.communicate(q)
+            child.communicate(conv(q))
             estatus = child.returncode
             if(estatus!=0):
                 raise Exception("squilite exited with nonzero exit status %d"%(estatus))
@@ -126,7 +133,7 @@ drop table {x};
 .quit
 """.format(outfile=outfile, x='tmp')
         print(qdrop)
-        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE).communicate(qdrop)
+        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE).communicate(conv(qdrop))
 
 
 if __name__ == "__main__":

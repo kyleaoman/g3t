@@ -31,6 +31,7 @@ class FoF(BaseModel):
     i_file = IntegerField()
     id_cluster = IntegerField()
     i_in_file = IntegerField()
+    resolvness = IntegerField()
     fsub  =  FloatField(null=True)
     m25k  =  FloatField(null=True)
     ncon  =  FloatField(null=True)
