@@ -78,17 +78,30 @@ def periodic_axis(x,   periodic=None, center_c=None):
                     return dx+center_c
 _periodic=["POS "]
 
-def join_res(res, blocks,  join_ptypes, only_joined_ptypes):
+def join_res(res, blocks,  join_ptypes, only_joined_ptypes, f=None):
         ptypes = [i for i in res if i!=-1]
         if join_ptypes:
             res[-1]={}
             for block in iterate(blocks):
-                t = [res[i][block] for i in res if i!=-1 and len(res[i][block])>0]
-                #print("lent",len(t))
+                t=[]
+                for i in res:
+                    if i==-1: continue
+                    if len(res[i][block])>0:
+                        t.append(res[i][block])
+                    else:
+                        if f is not None and f.info is not None:
+                            cols, dtype = f.get_data_shape(block,i)
+                            shape = f.header.npart[i]
+                            if cols>1:
+                                shape = (f.header.npart[i],cols)
+                            b =np.full(shape,np.nan, dtype=dtype)
+                            if len(b)>0:
+                                t.append(b)
                 if len(t)>0:
                     res[-1][block] =np.concatenate(tuple(t))
                 else:
-                    res[-1][block] =np.array([])
+                    res[-1][block] = np.array([])
+
             res[-1]['PTYPE']=np.concatenate(tuple(
                 [np.zeros(len(res[i][iterate(blocks)[0]]),dtype=np.int32)+i  for i in res if i!=-1]
             ))
@@ -105,6 +118,32 @@ def join_res(res, blocks,  join_ptypes, only_joined_ptypes):
             if not iterable(blocks):
                 res = res[blocks]
         return res
+
+def to_spherical(xyzt,center):
+    xyz = xyzt.T
+    x       = xyz[0]-center[0]
+    y       = xyz[1]-center[1]
+    z       = xyz[2]-center[2]
+    r       =  np.sqrt(x*x+y*y+z*z)
+    r[r==0.]=-1.
+    theta   =  np.arccos(z/r)
+    r[r==-1.]=0.
+    phi     =  np.arctan2(y,x)
+    phi[r==0.]=0.
+    theta[r==0.]=0.
+    return np.array([r,theta,phi]).T
+
+def to_cartesian(rthetaphi):
+
+    r       = rthetaphi.T[0]
+    theta   = rthetaphi.T[1]
+    phi     = rthetaphi.T[2]
+    x = r * np.sin( theta ) * np.cos( phi )
+    y = r * np.sin( theta ) * np.sin( phi )
+    z = r * np.cos( theta )
+    return np.array([x,y,z])
+
+
 
 def periodic(x, periodic=None, center=None):
     if periodic is not None:
@@ -681,36 +720,21 @@ class GadgetFile(object):
                 f_data = self.read(block, ptype)
                 res[ptype][block] = f_data
 
-        return  join_res(res, blocks, join_ptypes, only_joined_ptypes)
+        return  join_res(res, blocks, join_ptypes, only_joined_ptypes, f=self)
 
 
 
-    def read(self, block, ptype, p_toread=None, p_start=None, periodic=_periodic, center=None):
+    def get_data_shape(self, g_name, ptype):
+        if g_name=="INFO" or self.info is None:
 
-       if(debug):
-            printf("g3.read: reading '%s'/%s/'%s'\n"%(self._filename, str(block), str(ptype)), e=True)
-
-       if block=='MASS' and self.header.mass[ptype]>0:
-            if p_toread == None:
-                return np.zeros(self.header.npart[ptype])+self.header.mass[ptype]
-            else:
-                l = p_toread
-                return np.zeros(l)+self.header.mass[ptype]
-
-
-       g_name = block
-
-
-       if g_name=="INFO" or self.info is None:
-           
            dtype=np.float32
            partlen = self.blocks[g_name].partlen
            if g_name=="ID  ":
                dtype=np.uint64
            dim = np.dtype(dtype).itemsize
            cols = int(partlen/dim)
-           #print("    ",g_name, "dtype", dtype, "dim", dim, "cols", cols)
-       else:
+           return cols,dtype
+        else:
            info = self.info
            if g_name not in self.info:
                raise Exception("block not found %s"%g_name)
@@ -726,19 +750,24 @@ class GadgetFile(object):
            if stype=="DOUBLE  ": dtype=np.float64
            if stype=="DOUBLEN ": dtype,cols=np.float64,sdim
            self.blocks[g_name].partlen = dtype().nbytes*cols
-           partlen = self.blocks[g_name].partlen 
-           """ from readnew.pro:
-                     IF strcmp(type,"FLOAT   ") THEN bytes_per_element = 4
-                     IF strcmp(type,"FLOATN  ") THEN bytes_per_element = 4*ndim
-                     IF strcmp(type,"LONG    ") THEN bytes_per_element = 4
-                     IF strcmp(type,"LLONG   ") THEN bytes_per_element = 8
-                     IF strcmp(type,"DOUBLE  ") THEN bytes_per_element = 8
-                     IF strcmp(type,"DOUBLEN ") THEN bytes_per_element = 8*ndim
-           """
-           
-           if (debug):
-               print("INFO", g_name, "dtype", dtype, dtype.itemsize, "stype", stype, "cols", cols, "partlen",partlen)
+           partlen = self.blocks[g_name].partlen
+        return cols,dtype
 
+    def read(self, block, ptype, p_toread=None, p_start=None, periodic=_periodic, center=None):
+
+       if(debug):
+            printf("g3.read: reading '%s'/%s/'%s'\n"%(self._filename, str(block), str(ptype)), e=True)
+
+       if block=='MASS' and self.header.mass[ptype]>0:
+            if p_toread == None:
+                return np.zeros(self.header.npart[ptype])+self.header.mass[ptype]
+            else:
+                l = p_toread
+                return np.zeros(l)+self.header.mass[ptype]
+
+
+       g_name = block
+       cols,dtype = self.get_data_shape (g_name, ptype)
        if p_toread is None: 
            if (debug):
                print("get block parts()")
@@ -749,7 +778,6 @@ class GadgetFile(object):
        if (debug):
            print(f_parts, p_start)
             
-
 
        (f_read, f_data) = self.get_block(g_name, ptype, f_parts, p_start)
 
@@ -762,10 +790,7 @@ class GadgetFile(object):
        f_data.dtype = dtype
        if(debug):
            print(block, ptype, f_data.shape,'cols', cols, 'f_data',len(f_data), 'f_data/cols', len(f_data)/cols)
-       #print(int(len(f_data)/cols), cols)
        if cols>1: f_data.shape = (int(len(f_data)/cols),cols)
-       #print("shape", f_data.shape)
-       #print("shape", f_data.dtype, dtype)
        if periodic is not None and block in _periodic and center is not None:
            f_data = periodic(f_data, periodic=self.header.BoxSize, center=center)
        return f_data
@@ -1066,7 +1091,7 @@ def read_particles_in_files(myname,blocks,ptypes, periodic=True , center=None, j
           for block in iterate(blocks):
             x = f.read_new(block, ptype, join_ptypes=True, only_joined_ptypes=True, center=center if periodic else None)
             res[ptype][block]=x
-    return  join_res(res, blocks, join_ptypes, only_joined_ptypes)
+    return  join_res(res, blocks, join_ptypes, only_joined_ptypes, f=f)
 
 def read_particles_only_superindex(mmyname,blocks,keylist, ptypes, periodic=True, center=None, join_ptypes=True, only_joined_ptypes=True):
     res={}
@@ -1081,6 +1106,7 @@ def read_particles_only_superindex(mmyname,blocks,keylist, ptypes, periodic=True
 def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center=None, join_ptypes=True, only_joined_ptypes=True):
     res={}
     ifiles=find_files_for_keys(mmyname,keylist)
+    f=None
     for ifile in ifiles:
       myname=mmyname+'.'+str(ifile)+'.key'
       mysnap=mmyname+'.'+str(ifile)
@@ -1141,7 +1167,7 @@ def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center
                 res[ptype][block] = np.concatenate(res[ptype][block])
             else:
                 res[ptype][block] = np.array([])
-    return join_res(res, blocks, join_ptypes, only_joined_ptypes)
+    return join_res(res, blocks, join_ptypes, only_joined_ptypes, f=f)
 
 
 def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=True, has_keys=True,  join_ptypes=True, only_joined_ptypes=True):

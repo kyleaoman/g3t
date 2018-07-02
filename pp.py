@@ -206,36 +206,6 @@ def fix_v(data,gpos,d=60.,H0=0.1):
 
 
 
-def to_spherical(xyzt,center):
-    #takes list xyz (single coord)
-    import math
-    xyz = xyzt.T
-    #print("xyzt", xyz)
-    x       = xyz[0]-center[0]
-    y       = xyz[1]-center[1]
-    z       = xyz[2]-center[2]
-    r       =  np.sqrt(x*x+y*y+z*z)
-    #supress warnings for z=0,r=0 and z/r=0/0
-    r[r==0.]=-1.
-    theta   =  np.arccos(z/r)
-    r[r==-1.]=0.
-    import sys
-    phi     =  np.arctan2(y,x)
-    phi[r==0.]=0.
-    theta[r==0.]=0.
-    return np.array([r,theta,phi]).T
-
-def to_cartesian(rthetaphi):
-
-    r       = rthetaphi[0]
-    theta   = rthetaphi[1]
-    phi     = rthetaphi[2]
-    x = r * np.sin( theta ) * np.cos( phi )
-    y = r * np.sin( theta ) * np.sin( phi )
-    z = r * np.cos( theta )
-    return [x,y,z]
-
-
 
 
 def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass, gas_pos, gas_vel, gas_u, gas_temp, H0=0.1, G=47003.1, cut=None, velcut=20.):
@@ -246,7 +216,7 @@ def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass
     all_data[-1]={}
     all_data[-1]["MASS"] = all_mass
     all_data[-1]["POS "] = all_pos
-    all_sferical = to_spherical(all_pos, center)
+    all_sferical = g.to_spherical(all_pos, center)
     all_data[-1]["SPOS"] = all_sferical
     all_data[-1]["VEL "] = all_vel
     all_data[-1]["POT "] = all_potential
@@ -329,7 +299,7 @@ def gravitational_potential(masses, positions, gpos,
     all_data[-1]["POS "]=positions
 
     if spherical is None:
-        all_sferical = to_spherical(all_data[-1]["POS "], gpos)
+        all_sferical = g.to_spherical(all_data[-1]["POS "], gpos)
     else:
         all_sferical = spherical
 
@@ -372,7 +342,7 @@ def gravitational_potential(masses, positions, gpos,
 
 
 
-    spher_all_x ,    spher_all_y ,    spher_all_z = to_cartesian([spher_all_cds,spher_all_cts,spher_all_cfs])
+    spher_all_x ,    spher_all_y ,    spher_all_z = g.to_cartesian(np.array([spher_all_cds,spher_all_cts,spher_all_cfs]).T)
 
     shape=spher_all_ds.shape
     spher_b_delta_r=(spher_b[0][1:]-spher_b[0][:-1])
@@ -391,7 +361,7 @@ def gravitational_potential(masses, positions, gpos,
         for bin_r in range(len(spher_b[0])-1):
             for bin_t in range(len(spher_b[1])-1):
                 for bin_phi in range(len(spher_b[2])-1):
-                    position_xyz = to_cartesian(np.array([spher_all_cds[bin_r,bin_t,bin_phi], spher_all_cts[bin_r,bin_t,bin_phi],spher_all_cfs[bin_r,bin_t,bin_phi]]))
+                    position_xyz = g.to_cartesian(np.array(np.array([spher_all_cds[bin_r,bin_t,bin_phi], spher_all_cts[bin_r,bin_t,bin_phi],spher_all_cfs[bin_r,bin_t,bin_phi]])).T)
                     distances = np.sqrt( (spher_all_x-position_xyz[0])**2. + (spher_all_y-position_xyz[1])**2. + (spher_all_z-position_xyz[2])**2.)
                     distances = np.nan_to_num(distances)
                     non_zero_distances = distances>0.
@@ -706,7 +676,7 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
     def spherical(self,ptype):
         #print (ptype, self.read_new()[ptype]['POS '])
         #print(self.read_new()[ptype])
-        return  to_spherical(self.read_new()[ptype]['POS '],self.fof()['GPOS'])
+        return  g.to_spherical(self.read_new()[ptype]['POS '],self.fof()['GPOS'])
     def potential(self):
         spherical = self.spherical(-1)
         #print("spherical", spherical)
