@@ -73,6 +73,11 @@ class FoF(BaseModel):
     end_subfind_file  =  IntegerField(null=True)
 
 
+    mtop  =  FloatField(null=True)    
+    rtop  =  FloatField(null=True)    
+    
+    mmea  =  FloatField(null=True)
+    rmea  =  FloatField(null=True)
 
     mcri  =  FloatField(null=True)
     rcri  =  FloatField(null=True)

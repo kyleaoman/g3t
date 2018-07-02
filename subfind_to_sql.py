@@ -22,21 +22,23 @@ def printf(s,e=False):
 
 
         
-def dtl(DL,n):
+def dtl(DL,n, cols=None):
     keys = DL.keys()
-    
-    return [{key: DL[key][i] for key in keys if len(DL[key])>i} for i in range(n)]
+    return [{key: DL[key][i] for key in keys if len(DL[key])>i and (cols is None or key in cols)} for i in range(n)]
 def ltd(LD):
     return {k: [dic[k] for dic in LD] for k in LD[0]}
 
-def flat_props(props,n):
+def flat_props(props,n, cols=None):
+
         i = [x for x in props.items()]
+        
         for prop,oldprop in i:
             if len(props[prop].shape)>1:
                 del  props[prop]
                 for i_in_prop in range(oldprop.shape[1]):
-                    props[prop+str(i_in_prop)]=oldprop[:,i_in_prop]
-        lprops = dtl(props,n)
+                    if cols is not None and prop+str(i_in_prop) in cols:
+                        props[prop+str(i_in_prop)]=oldprop[:,i_in_prop]
+        lprops = dtl(props,n,cols)
         return lprops
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -67,6 +69,9 @@ def main():
 
 
     parser.add_argument('--look', type=str, default="MCRI")
+    parser.add_argument('--only-subfind-existing-columns', action='store_true', default=False)
+    parser.add_argument('--only-fof-existing-columns', action='store_true', default=False)
+
     parser.add_argument('--format', type=str, default="%e")
     parser.add_argument('--first-file', type=int, default=0)
     parser.add_argument('--delete-groups', help="delete all fofs of the snap before inserting. If false, tries to edit them", type=bool, default=False)
@@ -102,8 +107,10 @@ def main():
     
     
     snap = simulation.snaps.where(Snap.name==args.snap).first()
+    new_snap = False
     if snap is None:
         snap = Snap(simulation=simulation, name=args.snap, redshift=redshift, a =a, tag=args.tag)
+        new_snap=True
         snap.save()
 
     if args.delete_groups:
@@ -113,9 +120,22 @@ def main():
 
     max_fof_id = None
     if args.add_sf_bounds or args.add_sf_data:
-        max_fof_id = FoF.select().where((FoF.snap==snap) & (FoF.resolvness==1)).order_by(FoF.glen.asc()).first().id_cluster
-        args.min_val = 0
-        printf("Max FoF ID: %d\n"%(max_fof_id))
+        cluster = FoF.select().where((FoF.snap==snap) & (FoF.resolvness==1)).order_by(FoF.glen.asc()).first()
+        if cluster is not None:
+            max_fof_id = cluster.id_cluster
+            args.min_val = 0
+            printf("Max FoF ID: %d\n"%(max_fof_id))
+
+    subfind_cols = None
+    if args.only_subfind_existing_columns:
+        subfind_cols = [f for f in Galaxy.__dict__ if f[0]!='_' and f!='DoesNotExist']
+        printf("Subfind columns: %s\n"%( ' '.join(subfind_cols)),e=True)
+    fof_cols = None
+    if args.only_fof_existing_columns:
+        fof_cols = [f for f in Galaxy.__dict__ if f[0]!='_' and f!='DoesNotExist']
+        printf("FoF columns: %s\n"%( ' '.join(fof_cols)),e=True)
+
+
     ifof = 0
     previous_info = None
     for ifile in range(args.first_file,nfiles):
@@ -145,7 +165,7 @@ def main():
             props["end_subfind_file"] = np.zeros(n_fof_groups)-1
             props["resolvness"] = np.zeros(n_fof_groups)+1
 
-            lprops  = flat_props(props, n_fof_groups)
+            lprops  = flat_props(props, n_fof_groups, fof_cols)
             #print (props,lprops)
             printf("Clusters: len=%d N=%d from %d to %d\n"%(len(lprops), n_fof_groups,ifof, ifof+n_fof_groups))
             ifof+=n_fof_groups
@@ -164,7 +184,7 @@ def main():
 
         if args.add_sf_bounds or args.add_sf_data:
             grnrs = f.read_new("GRNR",1)
-            if (np.min(grnrs)>max_fof_id):
+            if (max_fof_id is not None and np.min(grnrs)>max_fof_id):
                 printf("Reached max fof %d\n"%max_fof_id);
                 break
             ufofs = np.unique(grnrs)
@@ -187,7 +207,7 @@ def main():
             nsfs = len(props["grnr"])
             props["snap_id"] = np.zeros(nsfs)+snap.id
             props["i_file"] = np.zeros(nsfs)+ifile
-            lprops  = flat_props(props, nsfs)
+            lprops  = flat_props(props, nsfs, subfind_cols)
             printf("Galaxies: N=%d/%d, from cluster %d to cluster %d\n"%(nsfs,len(grnrs), np.min(props["grnr"]), np.max(props["grnr"])))
             n_inserts = 0
             with db.atomic():
