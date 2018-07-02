@@ -15,7 +15,7 @@ import urllib
 
 
 BASE = "https://c2papcosmosim.uc.lrz.de" 
-VERSION= "0.1beta"
+VERSION= "0.2beta"
 globy = {}
 
         
@@ -112,14 +112,16 @@ def wait(br, jobid):
 
 def fill(br,f,v, debug=False, byval=False):
     if br.form.find_control(f).type == 'select' and byval==False:
+        item_set = False
         for item in br.form.find_control(f).items:
             if v == item.attrs['label']:
                 br.form.find_control(f).value=[item.attrs['value']]
-                print(f,"-> %",v,'=',item.attrs['value'])
-                
+                print(f,"-> [",v,']=',item.attrs['value'])
+                item_set = True
+        if item_set == False:
+            raise Exception("Error: field %s has no value %s"%(f,v))
     else:
-        if debug:
-            print(f,"->",v)
+        print(f,"->",v)
         br.form.find_control(f).readonly = False
         br.form.find_control(f).value = v
 
@@ -133,14 +135,14 @@ def submit(br, cluster_id, args):
     br.select_form(nr=0)
     fill(br, "cluster_id", str(int(cluster_id)), debug=True)
     for k in args.ps.keys():
+        if k=='redshift': continue
         v=args.ps[k]
-        try:
-            fill(br, k, str(v), debug=True)
-        except:
-            try:
-                fill(br, k, [str(v)], debug=True)
-            except:
-                log("skip param %s=%s"%(k,v))
+        
+
+
+        fill(br, k, str(v), debug=True)
+        #    raise Exception("ERROR: Unable to set parameter %s to value %s :("%(k,v))
+                #log("skip param %s=%s"%(k,v))
     #sys.exit(0)
     res = br.submit(name="submit_field").read()
     log("Job submitted.")
@@ -305,12 +307,12 @@ def main():
     from argparse import RawTextHelpFormatter
     parser = argparse.ArgumentParser(description='c2pap webportal job batches', formatter_class=RawTextHelpFormatter)
     parser.add_argument('-f', '--file', type=str,  help='"dataset.csv" returned by webportal', default='dataset.csv')
-    parser.add_argument('-u', '--username', type=str,  help='If not used, the email will be read from standard input.', default='ragagnin@lrz.de')
+    parser.add_argument('-u', '--username', type=str,  help='If not used, the email will be read from standard input.', required=True)
     parser.add_argument('-x', '--password', type=str,  help='If not used, the password will be safely read from standard input.')
     parser.add_argument('-v', '--verbose',  action="count", help='Display HTTPs requests')
     parser.add_argument('-w', '--weak-ssl', action='store_true', help="Doesn't check SSL certificate.", default=True)
     parser.add_argument('-e', '--existing-jobs', action='store_true',  help="Search for jobs with same parameters. If found, download its data.", default=False)
-    parser.add_argument('-s', '--service', choices=['SMAC','SimCut','PHOX','query'], help="Choose a service between SMAC, SimCut, PHOX. Check the lower/upper case.", default="SimCut")
+    parser.add_argument('-s', '--service', choices=['SMAC','SimCut','PHOX','query'], help="Choose a service between SMAC, SimCut, PHOX. Check the lower/upper case.", required=True)
     parser.add_argument('-t', '--time-sleep', help="How frequently check the status of the job in seconds.", default=60, type=int)
     parser.add_argument('-a', '--auto-download', help="Download data after execution", default=True, type=bool)
     parser.add_argument('-p', '--params', help="""Form parameters.

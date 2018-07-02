@@ -14,16 +14,27 @@ mu=0.6
 """ DONT EDIT ANYMORE """
 f = g.GadgetFile(filename)
 
+#
+#the function returns a data structure for all selected blocks (POS, VEL, MASS, TEMP)
+#and stack the data for the various particle types (0,1,2,3,4,5), where 0=gas, 1=dark matter, 4=stars, 5=black holes.
+#For instance, you can access all positions readin data["POS "]
+#If you need data separated per particle type, run
+#data = f.read_new(blocks=[...], ptypes=[...], only_joined_ptypes=False)
+#and you can access the properties for each data type, for instance gas particles, using data["POS "][0]
+#
 data = f.read_new(blocks=["POS ","VEL ","TEMP","MASS"], ptypes=[0,1,2,3,4,5])
 
 center = np.average(data["POS "],weights=data["MASS"],axis=0)
-relative_distance = np.abs(data["POS "]-center)
 
 #the function 'g.to_spherical()' returns data with columns 0,1,2 being rho,theta,phi
 spherical_cut = g.to_spherical(data["POS "],center)[:,0]<cut_radius
 
 vel = data["VEL "][spherical_cut]
 T_inside_radius = data["TEMP"][spherical_cut]
+
+#in the previous lines we loaded the block temperature for all particles, 
+#but only gas particles have a temperature, so the library fills
+#the particles
 T_inside_radius = T_inside_radius[~np.isnan(T_inside_radius)]
 radial_vel = g.to_spherical(data["VEL "],[0.,0.,0.])[:,0]
 
