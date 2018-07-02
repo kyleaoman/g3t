@@ -123,7 +123,10 @@ def fill(br,f,v, debug=False, byval=False):
     else:
         print(f,"->",v)
         br.form.find_control(f).readonly = False
-        br.form.find_control(f).value = v
+        if br.form.find_control(f).type == 'select':
+            br.form.find_control(f).value = [v]
+        else:
+            br.form.find_control(f).value = v
 
 #def select_option(form, field_id, text):
 #    value = nil
@@ -139,10 +142,10 @@ def submit(br, cluster_id, args):
         v=args.ps[k]
         
 
-
-        fill(br, k, str(v), debug=True)
-        #    raise Exception("ERROR: Unable to set parameter %s to value %s :("%(k,v))
-                #log("skip param %s=%s"%(k,v))
+        if v.is_option_number:
+            fill(br, k, str(v), debug=True, byval=True)
+        else:
+            fill(br, k, str(v), debug=True, byval=False)
     #sys.exit(0)
     res = br.submit(name="submit_field").read()
     log("Job submitted.")
@@ -155,7 +158,7 @@ def cmpf(a,b,precision=0, debug=False):
         print( s%float(a) == s%float(b), s%float(a) , s%float(b) )
     return  s%float(a) == s%float(b)
 
-def compare(job, args, debug=False):
+def compare(job, args, debug=True):
     if args.service=="SimCut":
         
         r500factor1 = args.ps['r500factor']
@@ -259,6 +262,12 @@ def choices_to_index(args):
     return True
 """
 
+class Parameter(str):
+    def __new__(cls, value, *args, **kwargs):
+        return super(Parameter, cls).__new__(cls, value)
+    def __init__(self, value, is_option_number=False):
+        self.is_option_number=is_option_number
+
 def get_sims_and_snaps(br, snap_id):
     res = br.open(BASE+'/map/find').read()
     j = json.loads(find_between(res, "myApp.constant('angulardata',", ")\n"))
@@ -271,7 +280,7 @@ def get_sims_and_snaps(br, snap_id):
     for simulation in simulations:
         br.select_form(nr=0)
         #log("test %s with id=%d"%(simulation["name"], simulation["id"]))
-        fill(br, "simulation", [str(simulation["id"])], byval=True)
+        fill(br, "simulation", str(simulation["id"]), byval=True)
         res = br.submit().read()
         j = json.loads(find_between(res, "myApp.constant('angulardata',", ")\n"))
         #print json.dumps(j, indent=4, sort_keys=True)
@@ -280,14 +289,15 @@ def get_sims_and_snaps(br, snap_id):
             #print (snap["id"], snap_id)
             if snap["id"] == snap_id:
                 br.select_form(nr=0)
-                fill(br, "snapshot", [str(int(snap_id))], byval=True)
+                fill(br, "snapshot", str(int(snap_id)), byval=True)
                 select_snap = snap["name"]
                 select_simulation = simulation["name"]
                 redshift = float(snap["redshift"])
                 log("Found %s/%s"%(select_simulation,select_snap)) 
                 br.submit()
-
-    return select_simulation, select_snap, redshift
+                #return str(simulation["id"]), str(int(snap_id))
+                return  str(simulation["id"]), str(int(snap_id)), select_simulation, select_snap, redshift
+        raise Exception("Unable to set simulation/snap")
 
 def main():
     log ("")
@@ -351,11 +361,18 @@ def main():
     args.ps = {}
     for p in args.params:
         try:
-            k,v = p.split('=', 1)
+            if ':=' in p:
+                k,v = p.split(':=', 1)
+                args.ps[k]=Parameter(v, is_option_number=True)
+            elif '=' in p:
+                k,v = p.split('=', 1)
+                args.ps[k]=Parameter(v)
+
+
         except:
-            printf("Error splitting %s\n"%(p),err=True)
+
+            printf("Error evaluating %s\n"%(p),err=True)
             sys.exit(1)
-        args.ps[k]=v
 
 
 
@@ -443,8 +460,11 @@ def main():
     log ("Read %d clusters."%(len(clusters)))
 
 
-    simulation_name, snap_name,  redshift =  get_sims_and_snaps(br,clusters[0]["snap_id"])
-    args.ps['redshift'] = redshift
+    simulationid, snapid, simulation_name, snap_name, redshift =  get_sims_and_snaps(br,clusters[0]["snap_id"])
+    #print(simulation_name, snap_name,  redshift)
+    args.ps["simulation"]=Parameter(simulationid, is_option_number=True)
+    args.ps["snapshot"]=Parameter(snapid, is_option_number=True)
+
 
     for cluster in clusters:
             found_job = None
@@ -459,19 +479,21 @@ def main():
                         continue
                     #print(int(cluster['# id']),simulation_name,job["simulation_name"], snap_name, job["SnapNum"] , cluster_id,  job["cluster_id"] ,job["application_name"], args.service.lower(),
                     #snap_name==job["SnapNum"] ,job["simulation_name"] == simulation_name, cmpf(job["cluster_id"], str(cluster_id)),job["application_name"]==args.service.lower())
+                    #print(jobid, snap_name, job["SnapNum"],  job["simulation_name"] , simulation_name, job["application_name"], args.service.lower())
                     if (snap_name==job["SnapNum"] and 
                     job["simulation_name"] == simulation_name and 
                         cmpf(job["cluster_id"] , str(cluster_id) )and  
                     job["application_name"]==args.service.lower()):
                         #print("compate", job, args)
+                        #print("FOUN?")
                         found = compare(job, args)#,debug=True)
                         if (found):
                             found_job = jobid
                         #print("found",found)
             if  found_job is None:
-                print cluster
-                log("Preparing job on (internal) clusterid=%d center=[%.0f,%.0f,%.0f].."%(int(cluster['uid']), cluster["x"], cluster["y"], cluster["z"]))
                 #sys.exit(0)
+                #print cluster
+                log("Preparing job on (internal) clusterid=%d center=[%.0f,%.0f,%.0f].."%(int(cluster['uid']), cluster["x"], cluster["y"], cluster["z"]))
                 found_job = submit(br, cluster["# id"], args)
                 log("New job: %s."%( found_job) )
             else:
@@ -479,7 +501,7 @@ def main():
 
             wait(br, found_job)
             download(br, args.naming, found_job,  get_job_or_cache(br, found_job, args.cache_jobs))
-
+            #sys.exit(0)
 
 
     
