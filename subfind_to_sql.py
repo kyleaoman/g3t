@@ -112,6 +112,11 @@ def main():
         snap = Snap(simulation=simulation, name=args.snap, redshift=redshift, a =a, tag=args.tag)
         new_snap=True
         snap.save()
+    elif args.add_fof and not args.delete_groups:
+        test_fof = FoF.select().where((FoF.snap==snap) & (FoF.resolvness==1)).first()
+        if test_fof!=None:
+            raise Exception("Clusters for this simulation and snapshot  already present in the databse :(")
+    print(args.add_fof, args.delete_groups, args.add_fof and not args.delete_groups)
 
     if args.delete_groups:
         fofs = snap.fofs

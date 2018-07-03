@@ -1,12 +1,7 @@
 
-function db_1e5(){
-#    export DB=/tmp/ciao_1e4_23_06_2018.sql
-    export DB=/tmp/antonio/magneticum.sql
-    export LIM=1e4
-}
 
 function db_1e5_22j(){
-    export DB=/tmp/antonio/magneticum.sql
+    export DB=/tmp/antonio/magneticum.sql.dm
     export LIM=1e4
 }
 

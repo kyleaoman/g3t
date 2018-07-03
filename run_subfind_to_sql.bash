@@ -1,15 +1,15 @@
 #set -v
-set -e
+set -ve
 #rm $DB && python subfind_to_sql.py  --ciao 2>/dev/null
 
 echo DB=$DB
 if [ -z "$DB" ]; then echo 'no $DB set'; exit;fi
 
-(python subfind_to_sql.py )
-(sqlite3 $DB 'CREATE INDEX fof_i  ON fof (snap_id,id_cluster);' )
-(sqlite3 $DB 'CREATE INDEX galaxy_i  ON galaxy (snap_id,id_cluster);' )
-(sqlite3 $DB 'CREATE INDEX galaxy_i_pos  ON galaxy (snap_id,id_cluster,spos0,spos1,spos2);' )
-(sqlite3 $DB '.index' )
+python subfind_to_sql.py || true
+sqlite3 $DB 'CREATE INDEX fof_i  ON fof (snap_id,id_cluster);' || true
+sqlite3 $DB 'CREATE INDEX galaxy_i  ON galaxy (snap_id,id_cluster);' || true
+sqlite3 $DB 'CREATE INDEX galaxy_i_pos  ON galaxy (snap_id,id_cluster,spos0,spos1,spos2);' || true
+sqlite3 $DB '.index' || true
 
 echo NAME=$NAME LIM=$LIM   TAG=$TAG SNAP=$SNAP 
 

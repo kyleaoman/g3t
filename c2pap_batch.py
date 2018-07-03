@@ -1,6 +1,5 @@
 import getpass
 import mechanize
-
 import argparse
 import sys
 import csv
@@ -18,6 +17,9 @@ BASE = "https://c2papcosmosim.uc.lrz.de"
 VERSION= "0.2beta"
 globy = {}
 
+
+
+            
         
 def find_between( s, first, last ):
     start = s.index( first ) + len( first )
@@ -299,6 +301,20 @@ def get_sims_and_snaps(br, snap_id):
                 return  str(simulation["id"]), str(int(snap_id)), select_simulation, select_snap, redshift
         raise Exception("Unable to set simulation/snap")
 
+class MyBrowser(mechanize.Browser):
+    def __new__(cls, value, *args, **kwargs):
+        return super(MyBrowser, cls).__new__(cls, value)
+    def open(br, page):
+        while True:
+            try:
+                
+                return mechanize.Browser.open(br, page)
+            except Exception as e:
+                if e.code == 502:
+                    printf("Bad Gateway :( retrying in 60 seconds..\n",err=True)
+                    time.sleep(globy["time_sleep"])
+                else:
+                    raise
 def main():
     log ("")
     log ("===================================================")
@@ -382,7 +398,7 @@ def main():
         ssl._create_default_https_context = ssl._create_unverified_context
 
     log ("Initializing browser...")
-    br = mechanize.Browser()
+    br =MyBrowser()
 
     br.set_handle_equiv(True)
     br.set_handle_gzip(True)
