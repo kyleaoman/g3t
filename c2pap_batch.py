@@ -160,7 +160,7 @@ def cmpf(a,b,precision=0, debug=False):
         print( s%float(a) == s%float(b), s%float(a) , s%float(b) )
     return  s%float(a) == s%float(b)
 
-def compare(job, args, debug=True):
+def compare(job, args, debug=True, service_data=None):
     if args.service=="SimCut":
         
         r500factor1 = args.ps['r500factor']
@@ -171,11 +171,26 @@ def compare(job, args, debug=True):
         return  cmpf(z_image_size1,z_image_size2, debug=debug) and cmpf(r500factor1, r500factor2, precision=1, debug=debug)
     if args.service=="SMAC":
         c = True
-        c = c or (args.ps['content']==job['content'])
-        c = c or cmpf(args.ps['IMG_Z_SIZE'], job['IMG_Z_SIZE'], debug=debug)
-        c = c or cmpf(args.ps['PROJECT'], job['PROJECT'], debug=debug)
-        c = c or cmpf( args.ps['r500factor']/(1.+args.ps['redshift'])/(job['HUBBLE']/100), float(job['IMG_XY_SIZE'])/ float(job['R_VIR'])/2., debug=debug)
+        c = c and (args.ps['content']==job['content'])
+        c = c and cmpf(args.ps['IMG_Z_SIZE'], job['IMG_Z_SIZE'], debug=debug)
+        project = None
 
+        if args.ps['PROJECT'].is_option_number:
+            project = str(service_data['PROJECT'][int(args.ps['PROJECT'])]['value'])
+        else:
+            for p in service_data['PROJECT']:
+                if p['name']==args.ps['PROJECT']:
+                    project = str(p['value'])
+                    break
+        if project is None:
+            raise Exception("Unable to find the value of PROJECT='%s'"%(args.ps['PROJECT']))
+            
+        c = c and project == job['PROJECT']
+        c = c and cmpf( float(args.ps['r500factor'])/(1.+float(args.ps['redshift']))/(float(job['HUBBLE'])/100), float(job['IMG_XY_SIZE'])/ float(job['R_VIR'])/2., debug=debug)
+        print(args.ps['content'], job['content'], args.ps['content']==job['content'], c)
+        print(args.ps['IMG_Z_SIZE'], job['IMG_Z_SIZE'], cmpf(args.ps['IMG_Z_SIZE'], job['IMG_Z_SIZE'], debug=False))
+        print(project, job['PROJECT'], project == job['PROJECT'])
+        print()
         return c
     """
     mode
@@ -187,10 +202,23 @@ def compare(job, args, debug=True):
     simulate"""
     if args.service=="PHOX":
         c = True
-        c = c or (args.ps['content']==job['content'])
-        c = c or cmpf(args.ps['IMG_Z_SIZE'], job['IMG_Z_SIZE'], debug=debug)
-        c = c or cmpf(args.ps['PROJECT'], job['PROJECT'], debug=debug)
-        c = c or cmpf( args.ps['r500factor']/(1.+args.ps['redshift'])/(job['HUBBLE']/100), float(job['IMG_XY_SIZE'])/ float(job['R_VIR'])/2., debug=debug)
+        c = c and (args.ps['content']==job['content'])
+        c = c and cmpf(args.ps['IMG_Z_SIZE'], job['IMG_Z_SIZE'], debug=debug)
+        project = None
+
+        if args.ps['PROJECT'].is_option_number:
+            project = str(service_data['PROJECT'][int(args.ps['PROJECT'])]['value'])
+        else:
+            for p in service_data['PROJECT']:
+                if p['name']==args.ps['PROJECT']:
+                    project = str(p['value'])
+                    break
+        if project is None:
+            raise Exception("Unable to find the value of PROJECT='%s'"%(args.ps['PROJECT']))
+
+        c = c and project == job['PROJECT']
+        c = c and cmpf( float(args.ps['r500factor'])/(1.+float(args.ps['redshift']))/(float(job['HUBBLE'])/100), float(job['IMG_XY_SIZE'])/ float(job['R_VIR'])/2., debug=debug)
+
 
         return c
     else:
@@ -305,6 +333,7 @@ class MyBrowser(mechanize.Browser):
     def __new__(cls, value, *args, **kwargs):
         return super(MyBrowser, cls).__new__(cls, value)
     def open(br, page):
+        printf("Opening %s\n"%(page),err=True)
         while True:
             try:
                 
@@ -378,6 +407,7 @@ def main():
     for p in args.params:
         try:
             if ':=' in p:
+                raise Exception("assignment with ':=' is no more possible!")
                 k,v = p.split(':=', 1)
                 args.ps[k]=Parameter(v, is_option_number=True)
             elif '=' in p:
@@ -392,6 +422,8 @@ def main():
 
 
 
+
+        
 
     if args.weak_ssl:
         import ssl
@@ -426,6 +458,18 @@ def main():
     login(br, args.username, args.password)
     args.password = "" #after login, we the remove password from memory
     del args.password
+
+    
+    service_data = {}
+
+    if args.service=="SMAC":
+        import yaml
+        service_data = yaml.load(br.open(BASE+"/static/smac.yml"))
+
+    if args.service=="PHOX":
+        import yaml
+        service_data = yaml.load(br.open(BASE+"/static/phox.yml"))
+
 
     if args.service == "query":
         if 'query' not in args.ps:
@@ -480,6 +524,7 @@ def main():
     #print(simulation_name, snap_name,  redshift)
     args.ps["simulation"]=Parameter(simulationid, is_option_number=True)
     args.ps["snapshot"]=Parameter(snapid, is_option_number=True)
+    args.ps["redshift"]=Parameter(redshift, is_option_number=False)
 
 
     for cluster in clusters:
@@ -502,12 +547,12 @@ def main():
                     job["application_name"]==args.service.lower()):
                         #print("compate", job, args)
                         #print("FOUN?")
-                        found = compare(job, args)#,debug=True)
+                        found = compare(job, args, service_data=service_data)#,debug=True)
                         if (found):
                             found_job = jobid
                         #print("found",found)
             if  found_job is None:
-                #sys.exit(0)
+                sys.exit(0)
                 #print cluster
                 log("Preparing job on (internal) clusterid=%d center=[%.0f,%.0f,%.0f].."%(int(cluster['uid']), cluster["x"], cluster["y"], cluster["z"]))
                 found_job = submit(br, cluster["# id"], args)
