@@ -82,3 +82,54 @@ print("sigma velocity [km/s] =  %.1f "%(np.sqrt(sigma_vel)))
 print("mass weighted mean temperature [KeV] = %.2f "%(meanT/1.16e7))
 
 ```
+# Submitting multiple jobs to the c2pap web portal (http://c2papcosmosim.uc.lrz.de/)
+
+1) login to the portal
+
+2) filter some clusters of interest and download the dataset in a csv file (e.g. `dataset.csv`)
+
+3) download the file `c2pap_batch.py` rom this repository
+
+4) execute it with `-s <Service name>` where the service name can be `SMAC`,`SimCut`,`PHOX`,`query`. 
+
+6) set the csv file name with `-f daraset.csv`
+
+5) append the service parameters after the `-p` parameter. Below the list of parameters:
+```
+                        Form parameters.
+                            SimCut:
+                            IMG_Z_SIZE
+                            r500factor
+
+                            SMAC:
+                            content
+                            IMG_SIZE
+                            IMG_Z_SIZE
+                            PROJECT
+                            r500factor
+
+                            PHOX:
+                            mode
+                            instrument (-1 for generic)
+                            instrument_a (only if generic)
+                            instrument_fov (only if generic)
+                            t_obs_input
+                            img_z_size
+                            simulate
+
+                            query:
+                            query
+                            page
+                            limit
+```
+For instance the following will run a SMAC job over all objects in the dataset.csv:
+
+```bash
+python c2pap_batch.py -f dataset.csv -s SMAC -p content="bolometric x-ray luminosity" IMG_SIZE=512 IMG_Z_SIZE=5000 PROJECT='along z, xy plane' r500factor=2.0 -u <YOUR USERNAME> 
+````
+
+To avoid running duplicate jobs, use the flags ` --existing-jobs --cache-jobs cachefile.pickle` to make the script check for existing jobs with identical parameters
+
+```bash
+python c2pap_batch.py -f dataset.csv -s SMAC -p content="bolometric x-ray luminosity" IMG_SIZE=512 IMG_Z_SIZE=5000 PROJECT='along z, xy plane' r500factor=2.0 -u <YOUR USERNAME> --existing-jobs --cache-jobs cachefile.pickle
+````
