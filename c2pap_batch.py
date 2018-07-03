@@ -303,6 +303,8 @@ def get_sims_and_snaps(br, snap_id):
     res = br.open(BASE+'/map/find').read()
     j = json.loads(find_between(res, "myApp.constant('angulardata',", ")\n"))
     simulations = j["simulations"]
+    print (simulations)
+
     select_simulation = None
     select_snap = None
     redshift = None
@@ -314,10 +316,8 @@ def get_sims_and_snaps(br, snap_id):
         fill(br, "simulation", str(simulation["id"]), byval=True)
         res = br.submit().read()
         j = json.loads(find_between(res, "myApp.constant('angulardata',", ")\n"))
-        #print json.dumps(j, indent=4, sort_keys=True)
         snaps = j["snaps"]
         for snap in snaps:
-            #print (snap["id"], snap_id)
             if snap["id"] == snap_id:
                 br.select_form(nr=0)
                 fill(br, "snapshot", str(int(snap_id)), byval=True)
@@ -328,7 +328,7 @@ def get_sims_and_snaps(br, snap_id):
                 br.submit()
                 #return str(simulation["id"]), str(int(snap_id))
                 return  str(simulation["id"]), str(int(snap_id)), select_simulation, select_snap, redshift
-        raise Exception("Unable to set simulation/snap")
+    raise Exception("Unable to set simulation/snap")
 
 class MyBrowser(mechanize.Browser):
     def __new__(cls, value, *args, **kwargs):
@@ -553,7 +553,6 @@ def main():
                             found_job = jobid
                         #print("found",found)
             if  found_job is None:
-                sys.exit(0)
                 #print cluster
                 log("Preparing job on (internal) clusterid=%d center=[%.0f,%.0f,%.0f].."%(int(cluster['uid']), cluster["x"], cluster["y"], cluster["z"]))
                 found_job = submit(br, cluster["# id"], args)
