@@ -14,7 +14,8 @@ import urllib
 
 
 BASE = "https://c2papcosmosim.uc.lrz.de" 
-VERSION= "0.2beta"
+__version__= "0.3beta"
+__author__= "Antonio Ragagnin"
 globy = {}
 
 
@@ -356,7 +357,7 @@ def main():
     log ("")
     log ("Use option -h for help.")
     log ("")
-    log ("version: %s."%(VERSION))
+    log ("version: %s."%(__version__))
     log ("")
  
     from argparse import RawTextHelpFormatter

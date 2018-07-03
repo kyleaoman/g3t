@@ -107,11 +107,8 @@ def main():
         with open(args.outfile,'a') as fd:
             reses={}
             for prop in args.props:
-                if prop == "fossilness": res = cluster_data.fossilness()
-                elif prop ==  "virialness": res = cluster_data.virialness()
-                elif prop ==  "c200c": res = cluster_data.c200c()
-                else: raise Exception("property %s not found"%prop)
-                reses[prop]=res
+
+                reses[prop]=getattr(cluster_data, prop)()
                 
             if shown_keys == False:
                     printf("#id_Cluster ")

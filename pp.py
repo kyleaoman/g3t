@@ -121,25 +121,6 @@ def fossilness(masses, dists):
         return O(first_mass=first_mass, most_massive_not_first=most_massive_not_first,fossilness=first_mass/most_massive_not_first)
     except: #WHAT COULD POSSIBLY GO WRONG
         return  O(first_mass=np.nan, most_massive_not_first=np.nan,fossilness=np.nan)
-"""
-def resize_order_and_sort(my_data, gpos, radius,cut=None):
-
-    if cut is None:
-        cut=radius
-    for pt in my_data.keys():
-        poses=my_data[pt]['POS ']
-        if (len(poses))>0:
-            delta=poses-gpos
-            dists=np.sqrt(delta[:,0]**2+delta[:,1]**2+delta[:,2]**2)
-            sid_dists=np.argsort(dists)
-            mask_dist=sid_dists[dists[sid_dists]<cut]
-            for k in my_data[pt].keys():
-                my_data[pt][k]= my_data[pt][k][mask_dist]
-            my_data[pt]['DIST']=dists[mask_dist]
-        else:
-            my_data[pt]['DIST']=[]
-    return my_data
-"""
 
 
 def resize(my_data, gpos, radius,cut=None):
@@ -160,19 +141,7 @@ def resize(my_data, gpos, radius,cut=None):
             my_data[pt]['DIST']=[]
     return my_data
 
-"""
-def add_dist(my_data, gpos):
 
-    for pt in my_data.keys():
-        poses=my_data[pt]['POS ']
-        if (len(poses))>0:
-            delta=poses-gpos
-            dists=np.sqrt(delta[:,0]**2+delta[:,1]**2+delta[:,2]**2)
-            my_data[pt]['DIST']=dists
-        else:
-            my_data[pt]['DIST']=[]
-    return my_data
-"""
 def add_cut(my_data, gpos, cut):
 
     for pt in my_data.keys():
@@ -216,8 +185,6 @@ def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass
     all_data[-1]={}
     all_data[-1]["MASS"] = all_mass
     all_data[-1]["POS "] = all_pos
-    all_sferical = g.to_spherical(all_pos, center)
-    all_data[-1]["SPOS"] = all_sferical
     all_data[-1]["VEL "] = all_vel
     all_data[-1]["POT "] = all_potential
     if gas:
@@ -393,147 +360,106 @@ def gravitational_potential(masses, positions, gpos,
     return O(potential = all_data[-1]["SPHERICAL_POTE"])
 
 
-def J_adelheid(basepath, gpos, rcri,  dm=False,   keys=True,G=47003.1):
-    import np
-    if dm:
-        keys=False
-    cut=rcri
-    all_keys=['MASS','VEL ','POS ']
-    all_pt=[0,1,2,3,4]
-    all_data=g3.read_particles_in_box(basepath,gpos,cut,all_keys ,all_pt,has_super_index=keys)
-
-    import math
-
+def spinparameter (center, rcri, all_mass, all_pos, all_vel, all_dists, gas_mass, gas_pos, gas_vel, gas_dists, G=47003.1):
+    gas =False  if (gas_mass is None or gas_vel is None or gas_pos is None) else True
+    gpos = center
+    all_data={}
     all_data[-1]={}
-    new_pt=[]
-    for i in all_pt:
-        if len(all_data[i]['MASS'])==0:
-            del all_data[i]
-        else:
-            new_pt.append(i)
-    all_pt=new_pt
-    proprio_all_pt=all_pt+[-1]
-    for i in all_pt:
-        all_data[i]['MOME'] = all_data[i]['VEL ']
-        all_data[i]['MOME'][:,0] = all_data[i]['MOME'][:,0] * all_data[i]['MASS']
-        all_data[i]['MOME'][:,1] = all_data[i]['MOME'][:,1] * all_data[i]['MASS']
-        all_data[i]['MOME'][:,2] = all_data[i]['MOME'][:,2] * all_data[i]['MASS']
+    all_data[-1]["MASS"] = all_mass
+    all_data[-1]["POS "] = all_pos
+    all_data[-1]["VEL "] = all_vel
+    all_data[-1]["DIST"] = all_dists if all_dists is not None else to_spherical(all_pos, center)[:,0]
+    
+    if gas:
+        all_data[0]={}
+        all_data[0]["MASS"] = gas_mass
+        all_data[0]["POS "] = gas_pos
+        all_data[0]["VEL "] = gas_vel
+        all_data[0]["DIST"] = gas_dists if gas_dists is not None else to_spherical(gas_pos, center)[:,0]
 
 
+    for i in all_data:
+        all_data[i]['MOME'] = np.zeros(all_data[i]['VEL '].shape)
+        all_data[i]['MOME'][:,0] = all_data[i]['VEL '][:,0] * all_data[i]['MASS']
+        all_data[i]['MOME'][:,1] = all_data[i]['VEL '][:,1] * all_data[i]['MASS']
+        all_data[i]['MOME'][:,2] = all_data[i]['VEL '][:,2] * all_data[i]['MASS']
         all_data[i]['CPOS']= all_data[i]['POS ']-np.array(gpos)
-    all_keys.append("MOME")
-    all_keys.append("CPOS")
-    for key in all_keys:
-        all_data[-1][key]=np.concatenate(tuple([all_data[i][key] for i in all_pt]));
-    resize_order_and_sort(all_data,gpos,rcri,cut=cut)
 
+    res=O()
+    for i in all_data:
 
-    res={}
-    for i in [0,1,4,-1]:
-        res[i]={}
-        if i in  proprio_all_pt:
-            J_vector = np.cross( all_data[i]['CPOS'], all_data[i]['MOME'] )
-            J_sum = np.sum(J_vector,axis=0)
-            J_modi = np.sqrt(J_sum[0]**2.+J_sum[1]**2. + J_sum[2]**2. )
-            Mtot = np.sum(all_data[-1]['MASS'])
-            Mtypein = np.sum(all_data[i]['MASS'])
-            Lambda = J_modi*(Mtot**-1.5)*((2.*rcri)**-0.5)*(G**-0.5)
-            #print("Lambda", i, Lambda, J_modi, Mtot,rcri,G, )
-            res[i]["L"] = Lambda
-            res[i]["Jspec"] = J_modi/Mtypein
-
-
-            mask_in =  all_data[i]['DIST']<(0.3*rcri)
-            r_in=0.3*rcri
-            J_vector_in = np.cross(all_data[i]['CPOS'][mask_in], all_data[i]['MOME'][mask_in])
-            J_sum_in = np.sum(J_vector_in,axis=0)
-            J_modi_in = np.sqrt(J_sum_in[0]**2.+J_sum_in[1]**2. + J_sum_in[2]**2. )
-            Mtot_in = np.sum(all_data[-1]['MASS'][mask_in])
-            Mtypein = np.sum(all_data[i]['MASS'][mask_in])
-            Lambda_in = J_modi_in*(Mtot_in**-1.5)*((2.*r_in)**-0.5)*(G**-0.5)
-            res[i]["Lin"] = Lambda_in
-
-            res[i]["Jspecin"] = J_modi_in/Mtypein
-
-
+        J_vector = np.cross( all_data[i]['CPOS'], all_data[i]['MOME'] )
+        J_sum = np.sum(J_vector,axis=0)
+        J_modi = np.sqrt(J_sum[0]**2.+J_sum[1]**2. + J_sum[2]**2. )
+        Mtot = np.sum(all_data[-1]['MASS'])
+        Mtypein = np.sum(all_data[i]['MASS'])
+        Lambda = J_modi*(Mtot**-1.5)*((2.*rcri)**-0.5)*(G**-0.5)
+        if i==0:
+            res.Lambda_0 = Lambda
+            res.Jspec_0 = J_modi/Mtypein
         else:
-            res[i]["L"] = -1
-            res[i]["Lin"] = -1
-            res[i]["Jspec"] = -1
-            res[i]["Jspecin"] = -1
+            res.Lambda_all = Lambda
+            res.Jspec_all = J_modi/Mtypein
 
+        mask_in =  all_data[i]['DIST']<(0.3*rcri)
+        mask_tot_in =  all_data[-1]['DIST']<(0.3*rcri)
 
-
+        r_in=0.3*rcri
+        J_vector_in = np.cross(all_data[i]['CPOS'][mask_in], all_data[i]['MOME'][mask_in])
+        J_sum_in = np.sum(J_vector_in,axis=0)
+        J_modi_in = np.sqrt(J_sum_in[0]**2.+J_sum_in[1]**2. + J_sum_in[2]**2. )
+        Mtot_in = np.sum(all_data[-1]['MASS'][mask_tot_in])
+        Mtypein = np.sum(all_data[i]['MASS'][mask_in])
+        Lambda_in = J_modi_in*(Mtot_in**-1.5)*((2.*r_in)**-0.5)*(G**-0.5)
+        if i==0:
+            res.Lambda_in_0 = Lambda_in
+            res.Jspec_in_0 = J_modi_in/Mtypein
+        else:
+            res.Lambda_all = Lambda_in
+            res.Jspec_all = J_modi_in/Mtypein
 
     return res
 
 
+_cache_size=12
+from collections import deque
 
-def myDecorator(func):
-    " Used on methods to convert them to methods that replace themselves\
-        with their return value once they are called. "
+#def memo(self, maxsize=None):
+def memo(maxsize=None):
+    #print("memo maxsize=", maxsize)
+    self = O()
+    def decorator(f):
+        #print("decorator self=", self, "maxsize=",maxsize)
+        self.f = f
+        if maxsize is not None:
+            self.q = deque()
+        else:
+            self.q = deque(maxlen=maxsize)
+        #print("q", self.q)
 
-    _cache_objects = {}
-    def cache(*a,**b):
-        self = a[0] # Reference to the class who owns the method
-        #print("self:",self)
-        if self not in _cache_objects:
-            _cache_objects[self]={}
-        #print("a=",a,"b",b)
-        args={"a":a[1:],"b":b}
-        key = json.dumps(args)
-        #print("key=",key)
-        
-        if key not in _cache_objects[self]:
-             _cache_objects[self][key] = func(*a,**b)
-        return  _cache_objects[self][key]
+        def wrapper(*l,**kw):
+            #print("wrapper elf",self,"q",self.q)
+            #print("l",l)
+            #print("kw",kw)
+            myparametri=(l,kw)
+            for parametri,risultato in self.q:
+                if parametri == myparametri:
+                    #print("found cacho ",myparametri)
+                    return risultato
+            #print("cacho ",myparametri)
+            risultato = self.f(*myparametri[0],**myparametri[1])
+            self.q.append((myparametri, risultato))
+            return risultato
+        return wrapper
 
-    return cache
+    return decorator
 
-class myMetaClass(type):
-    def __new__(cls, name, bases, local):
-        #print("new meta")
-        for attr in local:
-            if attr[0]=='_' or not callable(local[attr]):
-                continue
-            #print("meta", attr)
-            value = local[attr]
-            if callable(value):
-                local[attr] = myDecorator(value)
-        return type.__new__(cls, name, bases, local)
+@memo(maxsize=_cache_size)
+def _fof_info(filename, is_snap=False):
+    #print("_fof info caching ",filename,is_snap)
+    return g.GadgetFile(filename, is_snap)
 
-class Queue(object):
-    def __init__(self,size):
-        self.items = []
-        self.size=size
-    def keys(self):
-        return [item[0] for  item in self.items]
-    def __contains__(self, key):
-        return key in self.keys()
-    def __getitem__(self, key):
-        if key not in self.keys():
-            raise Exception("No cached item with key '%s'"%(key))
-        i=-1
-        for _key in self.keys():
-            i=i+1
-            if key==_key:
-                return self.items[i][1]
-        raise Exception("No cached item with key '%s'"%(key))
-    def __setitem__(self, key, value):
-        if key in self:
-            del self[key]
-        self.items.insert(0,(key, value))
-        self.items = self.items[:self.size]
-        return value
-    def __delitem__(self, key):
-        del self.items[self.keys().index(key)]
-        
-
-_cache_fofs = Queue(10)        
-
-_fof_info = None
-
-class PostProcessing(with_metaclass(myMetaClass, object)):
+class PostProcessing(object):
 
     def __init__(self, **kw):
         for k in kw:
@@ -553,12 +479,13 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
     subfind_and_fof_same_file = False
     subfind_files_range = None
     random_subset_size = 2000
+    @memo()
     def fof_file(self,i_file):
         global _fof_info
         filename = '%s.%d'%(self.group_base,i_file)
-        if not (self.use_cache and (filename in _cache_fofs.keys())):
-            _cache_fofs[filename]=g.GadgetFile(filename, is_snap=False)
-        f = _cache_fofs[filename]
+        #print("CALL from cache", filename)
+        
+        f = _fof_info(filename, is_snap=False)
         if f.info is not None and _fof_info is None: 
             _fof_info=f.info
         if f.info is None and _fof_info is not  None:
@@ -569,6 +496,7 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
         if _fof_info is None:
             raise Exception("unable to recover the fof.info block")
         return f
+    @memo()
     def satellites(self):
         cluster_id=self.cluster_id
         keys=self.sf_blocks
@@ -591,18 +519,19 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
         while True:
             i1_file+=1
             f=self.fof_file(i1_file)
+
             fof_ids=f.read_new('GRNR',1)
-            print('range', f._filename, 'fofs in file:', np.min(fof_ids), np.max(fof_ids))
+            #print('range', f._filename, 'fofs in file:', np.min(fof_ids), np.max(fof_ids))
             #print(f.info["GRNR"])
             #print(np.unique(fof_ids))
             if just_found==True and cluster_id not in fof_ids: 
-                print('just ofunds! & cliuster_id not in fof_ids')
+                #print('just ofunds! & cliuster_id not in fof_ids')
                 break
             if np.min(fof_ids)>cluster_id:
-                print('fof id range', np.min(fof_ids),np.max(fof_ids),'>','cluster_id',cluster_id)
+                #print('fof id range', np.min(fof_ids),np.max(fof_ids),'>','cluster_id',cluster_id)
                 break
             if cluster_id in fof_ids:
-                print("!")
+                #print("!")
                 if just_found is False:
                     for key in keys:
                         satellites[key]= f.read_new(key,1)[fof_ids==cluster_id] #satellites may be on different files, but always contiguous in files
@@ -611,13 +540,14 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
                         satellites[key]=np.concatenate((satellites[key],f.read_new(key,1)[fof_ids==cluster_id]),axis=0)
                 just_found=True
             if np.max(fof_ids)>cluster_id:
-                print('max fof id range', np.min(fof_ids),np.max(fof_ids),'>','cluster_id',cluster_id,'next file is useless')
+                #print('max fof id range', np.min(fof_ids),np.max(fof_ids),'>','cluster_id',cluster_id,'next file is useless')
                 break
         return satellites
     def header(self):
         return self.fof_file(0).header
     def box_size(self):
         return self.header().BoxSize
+    @memo()
     def fof(self, keys=None):
         cluster_id_in_file=self.cluster_id_in_file
         i_file = self.cluster_i_file
@@ -631,6 +561,7 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
         return res
     def z(self):
         return self.header().redshift
+    @memo()
     def fossilness(self):
             size=self.box_size()
             cluster_center = self.fof()['GPOS']
@@ -655,6 +586,7 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
             return fossilness(np.nan, np.nan)
     def mcri(self):   return self.fof()["MCRI"]
     def rcri(self):   return self.fof()["RCRI"]
+    @memo()
     def read_new(self):
         all_data =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'],
                                             self.rcri(),
@@ -665,6 +597,7 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
         add_cut(all_data, self.fof()['GPOS'], self.rcri())
         g.join_res(all_data, self.snap_all_blocks+self.snap_gas_blocks,  True, False)
         return all_data
+    @memo()
     def c200c(self):
         fof_pos = self.fof()['GPOS']
         fof_r = self.fof()['RCRI']
@@ -673,10 +606,12 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
         dm_pos_data=dm_data['POS ']
         r=nfw_fit(dm_mass_data,dm_pos_data,fof_pos,fof_r)
         return O(**{"rho0":r.x[0],"c":1./r.x[1],"rs":r.x[1]*fof_r})
+    @memo()
     def spherical(self,ptype):
         #print (ptype, self.read_new()[ptype]['POS '])
         #print(self.read_new()[ptype])
         return  g.to_spherical(self.read_new()[ptype]['POS '],self.fof()['GPOS'])
+    @memo()
     def potential(self):
         spherical = self.spherical(-1)
         #print("spherical", spherical)
@@ -707,7 +642,24 @@ class PostProcessing(with_metaclass(myMetaClass, object)):
         ax = fig.add_subplot(1, 1, 1)
         ax.scatter(maskedpos[:,2],maskedpos[:,0],s=1)
         fig.savefig(output_path+'zx.png')
+    @memo()
+    def spinparameter(self):
+        read_new = self.read_new()
+        all_mass =read_new[-1]["MASS"]
+        all_pos = read_new[-1]["POS "]
+        all_vel = read_new[-1]["VEL "]
+        all_dists =        self.spherical(-1)[:,0]
+        gas_dists =        self.spherical(0)[:,0]
+        #print(all_dists.shape)
+        #print(gas_dists.shape)
 
+        gas_mass = read_new[0]["MASS"]
+        #print(gas_mass.shape)
+        gas_pos = read_new[0]["POS "]
+        gas_vel = read_new[0]["VEL "]
+        return spinparameter (self.fof()["GPOS"], self.rcri(), all_mass, all_pos, all_vel, all_dists, gas_mass, gas_pos, gas_vel, gas_dists)
+
+    @memo()
     def virialness(self):
         read_new = self.read_new()
         all_mass =read_new[-1]["MASS"]

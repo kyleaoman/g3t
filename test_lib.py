@@ -95,6 +95,7 @@ for ifile  in range(nfiles):
         printf(" fossilness = %s\n"% str(cluster_data.fossilness()))
         printf(" virialness = %s\n"% str(cluster_data.virialness()))
         printf(" c200c = %s\n"% str(cluster_data.c200c()))
-        printf(" pictures = %s\n"%         cluster_data.pictures())
+        #        printf(" pictures = %s\n"%         cluster_data.pictures())
+        printf(" spinparameter = %s\n"%         cluster_data.spinparameter())
 
         printf("\n")
