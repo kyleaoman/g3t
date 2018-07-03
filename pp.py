@@ -145,6 +145,7 @@ def add_cut(my_data, gpos, cut):
 
     for pt in my_data.keys():
         #print(pt, my_data[pt])
+
         poses=my_data[pt]['POS ']
         if (len(poses))>0:
             delta=poses-gpos
@@ -213,7 +214,7 @@ def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass
     K=Kcoll+Kgas
 
     """ ES """
-    Nall = all_data[0]["MASS"].shape[0]
+    Nall = all_data[-1]["MASS"].shape[0]
     id_80bin=int(Nall*0.8)
     R_80bin=all_data[-1]['DIST'][id_80bin]
     R_mask = all_data[-1]['DIST']>R_80bin
@@ -575,7 +576,10 @@ class PostProcessing(object):
                 gpos= self.fof()['GPOS']
                 distances = np.sqrt((positions[:,0]-gpos[0])**2.+(positions[:,1]-gpos[1])**2.+(positions[:,2]-gpos[2])**2.)
                 #print(distances)
-                stellar_masses = satellites['SMST'][:,4]
+                if self.dm:
+                    stellar_masses = satellites['SMST'][:,1]
+                else:
+                    stellar_masses = satellites['SMST'][:,4]
                 #print(stellar_masses)
                 mask_distances = distances<radius
             if has_satellites:
@@ -595,6 +599,9 @@ class PostProcessing(object):
                                                 [0,1,2,3,4,5], 
                                             join_ptypes=False,
                                             only_joined_ptypes=False)
+            #print (all_data)
+            add_cut(all_data, self.fof()['GPOS'], self.rcri())
+            g.join_res(all_data, self.snap_all_blocks,  True, False)
         else:
             all_data =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'],
                                             self.rcri(),
@@ -602,8 +609,8 @@ class PostProcessing(object):
                                             [0,1,2,3,4,5], 
                                             join_ptypes=False,
                                             only_joined_ptypes=False)
-        add_cut(all_data, self.fof()['GPOS'], self.rcri())
-        g.join_res(all_data, self.snap_all_blocks+self.snap_gas_blocks,  True, False)
+            add_cut(all_data, self.fof()['GPOS'], self.rcri())
+            g.join_res(all_data, self.snap_all_blocks+self.snap_gas_blocks,  True, False)
         return all_data
     @memo()
     def c200c(self):
@@ -719,4 +726,3 @@ def pint(**defaults):
         u.enable_contexts(c,**defaults)
 
     return u
-
