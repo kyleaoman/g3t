@@ -24,7 +24,7 @@ function YO(){
 cd $F
 export DB=$TOSQL
 seq $DA $A |
-xargs -P$TASKS -n1 $MPIRUN $PYTHON composite_properties.py --basegroup $BASE/groups_$SNAP/sub_$SNAP --basesnap $BASE/snapdir_$SNAP/snap_$SNAP --simulation-name $NAME   --snap $SNAP  --chunks $CHUNKS  --prop $PROP --outfile $OUTPUT --restart --chunk " 
+xargs -P$TASKS -n1 $MPIRUN $PYTHON composite_properties.py --basegroup $BASE/groups_$SNAP/sub_$SNAP --basesnap $BASE/snapdir_$SNAP/snap_$SNAP --simulation-name $NAME   --snap $SNAP  --chunks $CHUNKS  --prop $PROP --outfile $OUTPUT --restart $PROPFLAGS --chunk " 
 }
 
 ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 0 3 20)\""

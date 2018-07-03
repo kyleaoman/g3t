@@ -4,10 +4,7 @@ import sys
 import numpy as np
 import math
 import json
-import scipy
-import scipy.optimize
-from six import with_metaclass
-import matplotlib.pyplot as plt
+
 
 
 
@@ -24,6 +21,8 @@ def printf(s,e=False):
 
 
 def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1.):
+    import scipy
+    import scipy.optimize
     m=mass
     p=pos
     delta=pos-center
@@ -422,10 +421,11 @@ def spinparameter (center, rcri, all_mass, all_pos, all_vel, all_dists, gas_mass
 
 
 _cache_size=12
-from collections import deque
+
 
 #def memo(self, maxsize=None):
 def memo(maxsize=None):
+    from collections import deque
     #print("memo maxsize=", maxsize)
     self = O()
     def decorator(f):
@@ -472,7 +472,7 @@ class PostProcessing(object):
     dm = False
     n_files = 10
     has_keys = False
-    fof_blocks = ['MCRI','GPOS','RCRI','RVIR']
+    fof_blocks = ['MCRI','GPOS','RCRI']
     sf_blocks = ['SMST','SPOS','GRNR']
     snap_all_blocks = ['POS ','VEL ','MASS']#,'ID  ']
     snap_gas_blocks = ['U   ','TEMP']
@@ -566,7 +566,7 @@ class PostProcessing(object):
             size=self.box_size()
             cluster_center = self.fof()['GPOS']
             satellites = self.satellites()
-            radius = self.fof()['RVIR']
+            radius = self.fof()['RCRI']
             has_satellites=False
             if 'SPOS' in satellites:
                 has_satellites=True
@@ -588,7 +588,15 @@ class PostProcessing(object):
     def rcri(self):   return self.fof()["RCRI"]
     @memo()
     def read_new(self):
-        all_data =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'],
+        if self.dm:
+            all_data =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'],
+                                            self.rcri(),
+                                            self.snap_all_blocks,
+                                                [0,1,2,3,4,5], 
+                                            join_ptypes=False,
+                                            only_joined_ptypes=False)
+        else:
+            all_data =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'],
                                             self.rcri(),
                                             self.snap_all_blocks+self.snap_gas_blocks,
                                             [0,1,2,3,4,5], 
@@ -623,6 +631,8 @@ class PostProcessing(object):
                                        spherical=spherical
         )
     def pictures(self):
+
+        import matplotlib.pyplot as plt
         output_path = self.output_path
         res = self.read_new()[-1]
         n_particles = len(res["MASS"])
@@ -648,15 +658,15 @@ class PostProcessing(object):
         all_mass =read_new[-1]["MASS"]
         all_pos = read_new[-1]["POS "]
         all_vel = read_new[-1]["VEL "]
-        all_dists =        self.spherical(-1)[:,0]
-        gas_dists =        self.spherical(0)[:,0]
-        #print(all_dists.shape)
-        #print(gas_dists.shape)
+        if  self.dm:
+            all_dists = gas_dists =  gas_mass =  gas_pos = gas_vel = None
+        else:
+            all_dists =        self.spherical(-1)[:,0]
+            gas_dists =        self.spherical(0)[:,0]
+            gas_mass = read_new[0]["MASS"]
+            gas_pos = read_new[0]["POS "]
+            gas_vel = read_new[0]["VEL "]
 
-        gas_mass = read_new[0]["MASS"]
-        #print(gas_mass.shape)
-        gas_pos = read_new[0]["POS "]
-        gas_vel = read_new[0]["VEL "]
         return spinparameter (self.fof()["GPOS"], self.rcri(), all_mass, all_pos, all_vel, all_dists, gas_mass, gas_pos, gas_vel, gas_dists)
 
     @memo()
@@ -666,11 +676,14 @@ class PostProcessing(object):
         all_pos = read_new[-1]["POS "]
         all_vel = read_new[-1]["VEL "]
         all_potential = self.potential().potential
-        gas_mass = read_new[0]["MASS"]
-        gas_pos = read_new[0]["POS "]
-        gas_vel = read_new[0]["VEL "]
-        gas_temp = read_new[0]["TEMP"]
-        gas_u = read_new[0]["U   "]
+        if self.dm:
+            all_dists = gas_dists =  gas_mass =  gas_pos = gas_vel = gas_u = gas_temp = None
+        else:
+            gas_mass = read_new[0]["MASS"]
+            gas_pos = read_new[0]["POS "]
+            gas_vel = read_new[0]["VEL "]
+            gas_temp = read_new[0]["TEMP"]
+            gas_u = read_new[0]["U   "]
         return  virialness(self.fof()["GPOS"], self.rcri(), all_mass, all_pos, all_vel, all_potential, gas_mass, gas_pos, gas_vel, gas_u, gas_temp, H0=0.1, G=47003.1)
 
                 

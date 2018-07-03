@@ -74,7 +74,7 @@ function Box0mr_bao_z2(){
 
 function Box0mr_dm(){
     onc2pap
-
+    export PROPFLAGS=--dm
     export DB=./tmp/magneticum.sql
 
     export LIM=3e4

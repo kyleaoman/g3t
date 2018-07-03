@@ -1172,8 +1172,12 @@ def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center
 
 def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=True, has_keys=True,  join_ptypes=True, only_joined_ptypes=True):
         ce=np.array(center)
+        if not os.path.isfile(snap_file_name+'.key.index'):
+            has_super_index=False
+
+            
         if   not   os.path.isfile(snap_file_name+".0.key"):
-            has_keys= False
+            has_keys = False
             
         if not has_keys:
             return read_particles_in_files(snap_file_name,blocks, ptypes=ptypes,center=ce,periodic=GadgetFile(snap_file_name).header.BoxSize,  join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
@@ -1182,6 +1186,8 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
         to=ce+d
 
         hkey=GadgetFile(snap_file_name+".0.key",is_snap=False)
+        if "KEY " not in hkey.blocks.keys():
+            has_super_index = False
         corner=hkey.header.mass[0:3]
         fac=hkey.header.mass[3]
         bits=hkey.header.flag_feedback
@@ -1210,7 +1216,7 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
                                             center=ce,periodic=hkey.header.BoxSize, join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
         else:
 
-            return read_particles_given_key_lite(snap_file_name,blocks,keylist,ptypes=ptypes, center=ce,
+            return read_particles_only_superindex(snap_file_name,blocks,keylist,ptypes=ptypes, center=ce,
                                                  periodic=hkey.header.BoxSize, join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
 
 

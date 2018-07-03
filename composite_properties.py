@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--outfile', type=str,help='outputgile', required=True)
 
     parser.add_argument('--chunk', type=int, required=True)
+    parser.add_argument('--dm', default=False, action="store_true")
     parser.add_argument('--chunks', type=int, required=True)
     parser.add_argument('--restart', action='store_true', default=False)
 
@@ -97,6 +98,7 @@ def main():
             continue
         cluster_data = pp.PostProcessing(
                 cluster_id=ifof,
+                dm=args.dm,
                 cluster_id_in_file=db_fof.i_in_file,
                 cluster_i_file=ifile,
                 group_base = args.basegroup,
