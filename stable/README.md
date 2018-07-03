@@ -1,6 +1,6 @@
-### Reading single snapshots
+# Reading single snapshots
 
-sample code:
+
 ```python
 import g3read
 f = g3read.GadgetFile("./test/snap_132")               
@@ -10,7 +10,7 @@ y = data["POS "][:,1]
 mass = data["MASS"]*1.e10
 ```
 
-### Overwriting a block in a single snapshot
+# Overwriting a block in a single snapshot
 
 ```python
 import g3read
@@ -29,7 +29,7 @@ print("done.")
 
 ```
 
-### Reading from a large simulation
+# Reading from a large simulation (reading simulations with superindexes)
 
 ```python
 import g3read
@@ -50,7 +50,7 @@ y=f["POS "][:,1]
 mass =f["MASS"]
 ```
 
-### Accessing blocks for different particle types
+# Accessing blocks for different particle types
 
 In case a you try to read a block for a particle type that does not have such a block, the values for that particle type will be NaN. 
 This is very useful when you want to access blocks for both darkmatter and gas particles in one single function calls.
@@ -61,45 +61,24 @@ The following code computes the beta value for a cluster:
 import numpy as np
 import g3read as g3read
 
-#simcut output:
 filename = "snap_060"
-
-#compute everything within this radius:
-cut_radius = 801.
-
-#mu
-mu=0.6
+cut_radius = 801. #consider only particles within this cut
 
 f = g3read.GadgetFile(filename)
-
 data = f.read_new(blocks=["POS ","VEL ","TEMP","MASS"], ptypes=[0,1,2,3,4,5]) #dark matter and star particles will have TEMP=NaN
-
 center = np.average(data["POS "],weights=data["MASS"],axis=0)
 
 #the function 'g.to_spherical()' returns data with columns 0,1,2 being rho,theta,phi
 spherical_cut = g.to_spherical(data["POS "],center)[:,0]<cut_radius
-
 vel = data["VEL "][spherical_cut]
-T_inside_radius = data["TEMP"][spherical_cut]
-
-#in the previous lines we loaded the block temperature for all particles, 
-#but only gas particles have a temperature, so the library fills
-#the particles
-T_inside_radius = T_inside_radius[~np.isnan(T_inside_radius)]
+T_inside_radius_wnans = data["TEMP"][spherical_cut]
+T_inside_radius = T_inside_radius_wnans[~np.isnan(T_inside_radius_wnans)] #remove all NaNs
 radial_vel = g.to_spherical(data["VEL "],[0.,0.,0.])[:,0]
 
-avg_vel = np.mean(radial_vel)
-avg_vel2 =  np.mean(radial_vel**2)
-sigma2_vel  = avg_vel2 - avg_vel*avg_vel
+sigma_vel  = np.sqrt(np.mean(radial_vel**2) - np.mean(radial_vel)**2.)
 meanT = np.mean(T_inside_radius) 
 
-print()
-print("cut radius [kpc/h] = %.1f "%(cut_radius))
-print("mass weighted center of mass [kpc/h] = %.1f %.1f %.1f "%(center[0], center[1], center[2]))
-print("sigma velocity [km/s] =  %.1f "%(np.sqrt(sigma2_vel)))
+print("sigma velocity [km/s] =  %.1f "%(np.sqrt(sigma_vel)))
 print("mass weighted mean temperature [KeV] = %.2f "%(meanT/1.16e7))
-print("beta = sigma**2/(KbT/mu*m_p) = %.2f "%((1e6*sigma2_vel)/(meanT*1.38e-23)*mu*1.66e-27))
-print()
-
 
 ```
