@@ -1,4 +1,16 @@
-# Reading gadget files and super indexrs
+
+
+#Table of Contents
+
+  * [Reading gadget files and super indexes](#read-gadget)
+    * [Reading single Gadget2/3 files](#read-gadget-single)
+      * [Selecting multiple blocks at the same time](#select-multiple)
+  * [Installation](#installation)
+  * [Uninstallation](#uninstallation)
+  * [Available plugins](#available-plugins)
+
+
+# Reading gadget files and super indexes
 
 You need to download the file `g3read.py`. It contains routines to read and write snapshots in single files (SimCut outpus) and to read large simulations that make use of super indexes (the IDL equivalent of `read_particle_in_a_box`)
 
