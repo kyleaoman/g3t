@@ -9,5 +9,6 @@ cache*
 *.csv
 *.pyc
 .*
+*pickle
 __pycache__
 

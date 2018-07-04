@@ -82,3 +82,14 @@ print("sigma velocity [km/s] =  %.1f "%(np.sqrt(sigma_vel)))
 print("mass weighted mean temperature [KeV] = %.2f "%(meanT/1.16e7))
 
 ```
+
+
+# Converting Gadget2/3 files to HDF5
+
+Use the utility `gadget_to_hdf5.py`.
+
+```bash
+python gadget_to_hdf5.py infile outfile
+```
+
+In case you need to map names diffrently from the default version, have a look at the source code of `gadget_to_hdf5.py` and edit your own mapping.

@@ -76,16 +76,7 @@ def main():
     page_size = n_fofs_db//(args.chunks-1)
     printf("Chunk%d N FoFs in snap database: %d\n"%(args.chunk, n_fofs_db),e=True)
     page = FoF.select().where((FoF.snap==snap)&(FoF.resolvness==1)).order_by(FoF.id_cluster.asc()).paginate(args.chunk+1, page_size)
-    """
-    s = lambda query: query.sql() #db.get_cursor().mogrify(*query.sql())
-    for i in range(args.chunks):
-        q1= FoF.select().where(FoF.snap==snap).order_by(FoF.id_cluster.asc()).paginate(i, page_size)
-        q2= FoF.select().where(FoF.snap==snap).order_by(FoF.id_cluster.asc()).paginate(i, page_size).count()
-        r = [x.id_cluster for x in q1]
-        #print(s(q1) )
-        print("chunk", i, "pagesize", page_size, "totnfofs",n_fofs_db, "size:", len(q1), "min id", np.min(r), "max id", np.max(r))
-    sys.exit(0)
-    """
+
 
     shown_keys=False
     keys={}
@@ -94,7 +85,7 @@ def main():
         ifile  = db_fof.i_file
         ifof = db_fof.id_cluster
         if args.restart and last_id_cluster is not None and ifof<=last_id_cluster:
-            printf("Skip ifof %d\n"%(ifof),e=True)
+            #printf("Skip ifof %d\n"%(ifof),e=True)
             continue
         cluster_data = pp.PostProcessing(
                 cluster_id=ifof,
