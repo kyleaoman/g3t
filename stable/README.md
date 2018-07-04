@@ -224,10 +224,7 @@ python c2pap_batch.py -f dataset.csv -s SMAC -p content="bolometric x-ray lumino
 To avoid running duplicate jobs, use the flags ` --existing-jobs --cache-jobs cachefile.pickle` to make the script check for existing jobs with identical parameters
 
 
-```
-
-
-# Converting Gadget2/3 files to HDF5
+#Converting Gadget2/3 files to HDF5
 
 Use the utility `gadget_to_hdf5.py`.
 
