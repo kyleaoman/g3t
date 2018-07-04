@@ -1,4 +1,4 @@
-In this folder I collected some tools to work and do post processing with gadgt files.
+In this folder I collected some python tools to work and do post processing with gadgt files.
 
 Antonio Ragagnin.
 
