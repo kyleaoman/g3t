@@ -12,7 +12,7 @@ Antonio Ragagnin.
          * [Writing a block back to a (new) file](#writing-a-block-back-to-a-new-file)
       * [Reading from a large simulation (reading simulations with superindexes)](#reading-from-a-large-simulation-reading-simulations-with-superindexes)
    * [Submit a batch of jobs to the c2pap web portal (<a href="http://c2papcosmosim.uc.lrz.de/" rel="nofollow">http://c2papcosmosim.uc.lrz.de/</a>)](#submit-a-batch-of-jobs-to-the-c2pap-web-portal-httpc2papcosmosimuclrzde)
-   * [Converting Gadget2/3 files to HDF5](#converting-gadget-2-3-files-to-hdf5)
+   * [Convert Gadget2/3 files to HDF5](#convert-gadget23-files-to-hdf5)
 
 
 Reading gadget files and super indexes
@@ -224,7 +224,7 @@ python c2pap_batch.py -f dataset.csv -s SMAC -p content="bolometric x-ray lumino
 To avoid running duplicate jobs, use the flags ` --existing-jobs --cache-jobs cachefile.pickle` to make the script check for existing jobs with identical parameters.
 
 
-# Converting Gadget2/3 files to HDF5
+# Convert Gadget2/3 files to HDF5
 
 Use the utility `gadget_to_hdf5.py`.
 
