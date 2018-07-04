@@ -1,20 +1,27 @@
+In this folder I collected some tools to work and do post processing with gadgt files.
+
+Antonio Ragagnin.
+
+# Table of contents
+
+   * [Reading gadget files and super indexes](#reading-gadget-files-and-super-indexes)
+      * [Reading single Gadget2/3 files](#reading-single-gadget23-files)
+      * [Selecting multiple blocks at the same time](#selecting-multiple-blocks-at-the-same-time)
+      * [Accessing blocks for different particle types](#accessing-blocks-for-different-particle-types)
+         * [Periodic boundary](#periodic-boundary)
+         * [Writing a block back to a (new) file](#writing-a-block-back-to-a-new-file)
+      * [Reading from a large simulation (reading simulations with superindexes)](#reading-from-a-large-simulation-reading-simulations-with-superindexes)
+   * [Submit a batch of jobs to the c2pap web portal (<a href="http://c2papcosmosim.uc.lrz.de/" rel="nofollow">http://c2papcosmosim.uc.lrz.de/</a>)](#submit-a-batch-of-jobs-to-the-c2pap-web-portal-httpc2papcosmosimuclrzde)
+   * [Converting Gadget2/3 files to HDF5](#converting-gadget-2-3-files-to-hdf5)
 
 
-#Table of Contents
-
-  * [Reading gadget files and super indexes](#read-gadget)
-    * [Reading single Gadget2/3 files](#read-gadget-single)
-      * [Selecting multiple blocks at the same time](#select-multiple)
-  * [Installation](#installation)
-  * [Uninstallation](#uninstallation)
-  * [Available plugins](#available-plugins)
-
-
-# Reading gadget files and super indexes
+Reading gadget files and super indexes
+======================================
 
 You need to download the file `g3read.py`. It contains routines to read and write snapshots in single files (SimCut outpus) and to read large simulations that make use of super indexes (the IDL equivalent of `read_particle_in_a_box`)
 
-## Reading single Gadget2/3 files
+Reading single Gadget2/3 files
+------------------------------
 
 the function `read_new` can read 1 or multiple blocks for one or multiple particle types (0 is gas, 1 is dark matter, 4 is stars and 5 is black holes). To select particles from all particle types use a particletype = -1.
 
@@ -38,7 +45,8 @@ y_gas = pos_gas[:,1]
 mass_gas =  f.read_new("MASS", 0)  
 ````
 
-### Selecting multiple blocks at the same time
+Selecting multiple blocks at the same time
+------------------------------------------
 
 If the first parameter of `read_new` is list of strings (instead of a string as in the previous examples), the function read_new will return a dictionary with each entry for each block
 
@@ -49,7 +57,8 @@ y_gas = data["POS "][:,1]
 mass_gas =  data["MASS"]
 ```
 
-### Accessing blocks for different particle types
+Accessing blocks for different particle types
+---------------------------------------------
 
 In case a you try to read a block for a particle type that does not have such a block, the values for that particle type will be NaN. 
 This is very useful when you want to access blocks for both darkmatter and gas particles in one single function calls.
