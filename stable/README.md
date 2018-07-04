@@ -1,4 +1,8 @@
-# Reading single snapshots
+# Reading gadget files and super indexrs
+
+You need to download the file `g3read.py`. It contains routines to read and write snapshots in single files (SimCut outpus) and to read large simulations that make use of super indexes (the IDL equivalent of `read_particle_in_a_box`)
+
+## Reading single Gadget2/3 files
 
 the function `read_new` can read 1 or multiple blocks for one or multiple particle types (0 is gas, 1 is dark matter, 4 is stars and 5 is black holes). To select particles from all particle types use a particletype = -1.
 
@@ -22,7 +26,7 @@ y_gas = pos_gas[:,1]
 mass_gas =  f.read_new("MASS", 0)  
 ````
 
-## Selecting multiple blocks at the same time
+### Selecting multiple blocks at the same time
 
 If the first parameter of `read_new` is list of strings (instead of a string as in the previous examples), the function read_new will return a dictionary with each entry for each block
 
@@ -33,7 +37,7 @@ y_gas = data["POS "][:,1]
 mass_gas =  data["MASS"]
 ```
 
-## Accessing blocks for different particle types
+### Accessing blocks for different particle types
 
 In case a you try to read a block for a particle type that does not have such a block, the values for that particle type will be NaN. 
 This is very useful when you want to access blocks for both darkmatter and gas particles in one single function calls.
@@ -91,7 +95,7 @@ all_types_masses= data[-1]["MASS"]
 ```
 
 
-## Periodic boundary 
+### Periodic boundary 
 
 The `read_particles_in_a_box` will take care of adjusting the position of particles in a periodic box so that particles that have a distance from   `center` greater than half-box-size, 
 
@@ -106,7 +110,9 @@ positions = data["POS "]
 
 
 
-# Overwriting a block in a single snapshot
+### Writing a block back to a (new) file
+
+In this example I also use the pacakge `pp.py` that contains a routine to compute the gravitational potential between particles of the snapshot.
 
 ```python
 import g3read
@@ -125,7 +131,7 @@ print("done.")
 
 ```
 
-# Reading from a large simulation (reading simulations with superindexes)
+## Reading from a large simulation (reading simulations with superindexes)
 
 ```python
 import g3read
@@ -148,7 +154,7 @@ mass =f["MASS"]
 
 
 
-# Submitting multiple jobs to the c2pap web portal (http://c2papcosmosim.uc.lrz.de/)
+# Submit a batch of jobs to the c2pap web portal (http://c2papcosmosim.uc.lrz.de/)
 
 1) login to the portal
 
