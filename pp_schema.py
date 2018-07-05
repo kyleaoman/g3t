@@ -27,6 +27,32 @@ class FoFFile(BaseModel):
     ifile = IntegerField()
     id_first_cluster = IntegerField()
 
+
+class PP(BaseModel):
+    id_cluster = IntegerField()
+    snap = ForeignKeyField(Snap, backref='pps')
+
+    c200c = FloatField(null=True)
+    c200c_rs = FloatField(null=True)
+    c200c_rho0 = FloatField(null=True)
+
+
+    fossilness_mcent = FloatField(null=True)
+    fossilness_msat = FloatField(null=True)
+    fossilness = FloatField(null=True)
+
+
+
+    virialness_w = FloatField(null=True)
+    virialness_es = FloatField(null=True)
+    virialness_k = FloatField(null=True)
+    virialness_w_gas = FloatField(null=True)
+    virialness_es_gas = FloatField(null=True)
+    virialness_k_gas = FloatField(null=True)
+    virialness_eta = FloatField(null=True)
+    virialness_beta = FloatField(null=True)
+
+
 class FoF(BaseModel):
     i_file = IntegerField()
     id_cluster = IntegerField()
@@ -118,23 +144,6 @@ class FoF(BaseModel):
     bgra  =  FloatField(null=True)
     mcri = FloatField(null=True)
 
-    c200c = FloatField(null=True)
-
-
-    fossilness_mcent = FloatField(null=True)
-    fossilness_msat = FloatField(null=True)
-    fossilness = FloatField(null=True)
-
-
-
-    virialness_w = FloatField(null=True)
-    virialness_es = FloatField(null=True)
-    virialness_k = FloatField(null=True)
-    virialness_w_gas = FloatField(null=True)
-    virialness_es_gas = FloatField(null=True)
-    virialness_k_gas = FloatField(null=True)
-    virialness_eta = FloatField(null=True)
-    virialness_beta = FloatField(null=True)
     snap = ForeignKeyField(Snap, backref='fofs')
 
 class Galaxy(BaseModel):

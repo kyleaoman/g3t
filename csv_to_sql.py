@@ -81,13 +81,13 @@ def main():
         print("grep -v '#' %s | sort -n  | head -n1 | awk '{print $1}'"%outfile)
         printf("File=%s, Fields: %s\n"%(outfile,','.join(header)))
 
-        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE ).communicate(conv("""
+        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stderr=sys.stderr, stdin=subprocess.PIPE ).communicate(conv("""
 .separator " "
 drop table if exists {x};
+drop index if exists {x}_i;
 .import '{outfile}' {x}
 select count(*) from {x};
-        CREATE INDEX {x}_i  ON {x} ("#id_Cluster");
-        CREATE INDEX {x}_i  ON {x} ("#id_Cluster");
+CREATE UNIQUE INDEX {x}_i  ON {x} ("#id_Cluster");
 
 .schema {x}
 .quit
@@ -103,26 +103,30 @@ select count(*) from {x};
                 printf("csv key=%s \n"%(k))
 
             q = """
-        update fof 
+        update pp
         set  {v} = (
             select cast({x}.{k} as float) from {x}
-            where cast({x}."#id_cluster" as  int)=fof.id_cluster
+            where cast({x}."#id_cluster" as  int)=pp.id_cluster
         )
 
  where 
-snap_id={snap_id} and fof.id_cluster < {max_id_cluster} and fof.id_cluster > {min_id_cluster} and
+snap_id={snap_id} and pp.id_cluster < {max_id_cluster} and pp.id_cluster > {min_id_cluster} and
 EXISTS (
             SELECT {x}."#id_cluster"
             FROM {x}
-            where cast({x}."#id_cluster" as  int)=fof.id_cluster
+            where cast({x}."#id_cluster" as  int)=pp.id_cluster
         ) 
 ;
 
 .quit
         """.format(outfile=outfile, x='tmp',k=k,v=cv[k],snap_id=snap.id, max_id_cluster=max_id_cluster, min_id_cluster = min_id_cluster)
             printf(q)
-            child = subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE)
+            printf("\n")
+            printf("\n")
+            child = subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE, stderr=sys.stderr)
             child.communicate(conv(q))
+            printf("\n")
+            printf("\n")
             estatus = child.returncode
             if(estatus!=0):
                 raise Exception("squilite exited with nonzero exit status %d"%(estatus))
@@ -133,7 +137,7 @@ drop table {x};
 .quit
 """.format(outfile=outfile, x='tmp')
         print(qdrop)
-        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE).communicate(conv(qdrop))
+        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stderr=sys.stderr, stdin=subprocess.PIPE).communicate(conv(qdrop))
 
 
 if __name__ == "__main__":
