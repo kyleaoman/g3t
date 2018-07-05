@@ -29,3 +29,6 @@ export TARGET=2018_jul_4
 . sims.bash; Box4uhr_bao_z1; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
 . sims.bash; Box4uhr_bao_z15; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
 . sims.bash; Box4uhr_bao_z2; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
+
+
+. sims.bash; Box0mr_bao_z0; bash ssh_copyback_properties.bash
