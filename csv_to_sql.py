@@ -48,6 +48,7 @@ def main():
     args = parser.parse_args()
     for k in args.__dict__:
         printf("%s %s\n"%(k,str(args.__dict__[k])),e=True)
+        printf("DB=%s\n"%(os.environ.get('DB')),e=True)
 
 
     cv=odict()
@@ -81,7 +82,16 @@ def main():
         print("grep -v '#' %s | sort -n  | head -n1 | awk '{print $1}'"%outfile)
         printf("File=%s, Fields: %s\n"%(outfile,','.join(header)))
 
-        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stderr=sys.stderr, stdin=subprocess.PIPE ).communicate(conv("""
+        max_id_in_pp = os.popen("sqlite3 %s 'select MAX(id) from pp'"%os.environ.get('DB')).read().strip()
+        printf("max_id_in_pp = [%s]\n"%(max_id_in_pp),e=True)
+        if max_id_in_pp == '':
+            max_id_in_pp=-1
+        else:
+            max_id_in_pp=int(max_id_in_pp)
+        start_id_in_pp=max_id_in_pp+1
+
+
+        q_port = conv("""
 .separator " "
 drop table if exists {x};
 drop index if exists {x}_i;
@@ -91,42 +101,66 @@ CREATE UNIQUE INDEX {x}_i  ON {x} ("#id_Cluster");
 
 .schema {x}
 .quit
-        """.format(outfile=outfile, x='tmp')))
-
+        """.format(outfile=outfile, x='tmp'))
+        printf(q_port)
+        subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stderr=sys.stderr, stdin=subprocess.PIPE ).communicate(q_port)
+        vs=[]
+        ks=[]
         for k in header:
             if args.csv_columns is not None and k not in args.csv_columns:
                 continue
-            if k in cv:
-                printf("csv key=%s (%s)\n"%(k, cv[k]))
-            else:
+            if k not in cv:
                 cv[k]=k
-                printf("csv key=%s \n"%(k))
+            vs.append(cv[k])
+            ks.append(k)
 
-            q = """
-        update pp
-        set  {v} = (
+
+
+        q_insert_raw = """
+
+        insert or ignore into pp(id, snap_id, id_cluster, {vs})    select {start_id_in_pp}+{x}."#id_cluster",{snap_id}, {x}."#id_cluster",{xks} from {x};
+        """
+        printf(q_insert_raw, e=True)
+        print(vs)
+        print(ks)
+        q_insert = q_insert_raw.format(outfile=outfile, x='tmp',snap_id=snap.id, max_id_cluster=max_id_cluster, min_id_cluster = min_id_cluster, start_id_in_pp=start_id_in_pp,
+                                       vs=','.join(vs), xks=','.join(['tmp.%s'%v for v in ks])
+        )
+            
+        printf(q_insert, e=True)
+        child = subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE, stderr=sys.stderr)
+        child.communicate(conv(q_insert))
+        estatus = child.returncode
+        if(estatus!=0):
+            raise Exception("squilite exited with nonzero exit status %d"%(estatus))
+        
+        for k in header:
+            if args.csv_columns is not None and k not in args.csv_columns:
+                continue
+            printf("csv key=%s -> %s\n"%(k,cv[k]))
+
+
+            q_update = """
+        update pp  set  {v} = (
             select cast({x}.{k} as float) from {x}
             where cast({x}."#id_cluster" as  int)=pp.id_cluster
         )
-
- where 
-snap_id={snap_id} and pp.id_cluster < {max_id_cluster} and pp.id_cluster > {min_id_cluster} and
-EXISTS (
+        where 
+       snap_id={snap_id} and pp.id_cluster <= {max_id_cluster} and pp.id_cluster >= {min_id_cluster} and
+       EXISTS (
             SELECT {x}."#id_cluster"
             FROM {x}
             where cast({x}."#id_cluster" as  int)=pp.id_cluster
-        ) 
-;
+        );
 
 .quit
-        """.format(outfile=outfile, x='tmp',k=k,v=cv[k],snap_id=snap.id, max_id_cluster=max_id_cluster, min_id_cluster = min_id_cluster)
-            printf(q)
-            printf("\n")
-            printf("\n")
+        """.format(outfile=outfile, x='tmp',k=k,v=cv[k],snap_id=snap.id, max_id_cluster=max_id_cluster, min_id_cluster = min_id_cluster, start_id_in_pp=start_id_in_pp)
+
+
+
+            printf(q_update)
             child = subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE, stderr=sys.stderr)
-            child.communicate(conv(q))
-            printf("\n")
-            printf("\n")
+            child.communicate(conv(q_update))
             estatus = child.returncode
             if(estatus!=0):
                 raise Exception("squilite exited with nonzero exit status %d"%(estatus))

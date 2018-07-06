@@ -1,7 +1,7 @@
 
 
 function db_1e5_22j(){
-    export DB=/tmp/antonio/magneticum.sql.dm
+    export DB=/tmp/antonio/magneticum.sql.faster
     export LIM=1e4
 }
 
