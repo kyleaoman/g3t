@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import math
 import json
-
+import os
 
 
 
@@ -38,6 +38,8 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1.):
     ii=np.argsort(d)
     the_num=42*math.pi #rlly?
     anz=len(d)
+    if anz==0:
+        return None
     nn=int(round(anz)/min([math.sqrt(anz),the_num]))
     part_anz=int(float(anz)/nn)
     numrb=round(20.*(part_anz/the_num)**.5)
@@ -71,20 +73,7 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1.):
         nftab[ir]=anz
 
     R=oldR
-    if plot is not None:
-        import matplotlib.pyplot as plt
-        figo, axo = plt.subplots()
-        axo.set_xscale("log")
-        axo.set_yscale("log")
-        axo.axvline(R)
-        axo.set_xlabel("r [kpc]")
-        axo.set_ylabel("Mass/vol [g*cm^-3]")
-        #axo.axis("equal")
-        axo.plot(rftab*R, rhoftab, label="Magneticum/Box2/z=0 cluster")
-        axo.legend()
-        figo.savefig(plot)
-        #import sys
-        sys.exit()
+
 
     r=rftab
     rho=rhoftab
@@ -141,19 +130,27 @@ def resize(my_data, gpos, radius,cut=None):
     return my_data
 
 
-def add_cut(my_data, gpos, cut):
-
+def add_cut(my_data, gpos, cut, sample=None):
+    
     for pt in my_data.keys():
         #print(pt, my_data[pt])
 
         poses=my_data[pt]['POS ']
+        if sample is not None:
+            mask_sample=np.random.choice([True,False],len(my_data[pt]["POS "]),p=[sample,1.-sample])
         if (len(poses))>0:
             delta=poses-gpos
             dists2=delta[:,0]**2+delta[:,1]**2+delta[:,2]**2
-            mask = dists2<(cut*cut)
+            mask_distance = dists2<(cut*cut)
+            if sample is not None:
+                mask = mask_sample & mask_distance
+            else:
+                mask = mask_distance
+
             for k in my_data[pt].keys():
                 if len( my_data[pt][k])>0:
                         my_data[pt][k]= my_data[pt][k][mask]
+
 
     return my_data
 
@@ -368,16 +365,16 @@ def spinparameter (center, rcri, all_mass, all_pos, all_vel, all_dists, gas_mass
     all_data[-1]["MASS"] = all_mass
     all_data[-1]["POS "] = all_pos
     all_data[-1]["VEL "] = all_vel
-    all_data[-1]["DIST"] = all_dists if all_dists is not None else to_spherical(all_pos, center)[:,0]
+    #all_data[-1]["DIST"] = all_dists if all_dists is not None else g.to_spherical(all_pos, center)[:,0]
     
     if gas:
         all_data[0]={}
         all_data[0]["MASS"] = gas_mass
         all_data[0]["POS "] = gas_pos
         all_data[0]["VEL "] = gas_vel
-        all_data[0]["DIST"] = gas_dists if gas_dists is not None else to_spherical(gas_pos, center)[:,0]
+        #all_data[0]["DIST"] = gas_dists if gas_dists is not None else g.to_spherical(gas_pos, center)[:,0]
 
-
+    #print (all_data)
     for i in all_data:
         all_data[i]['MOME'] = np.zeros(all_data[i]['VEL '].shape)
         all_data[i]['MOME'][:,0] = all_data[i]['VEL '][:,0] * all_data[i]['MASS']
@@ -386,7 +383,7 @@ def spinparameter (center, rcri, all_mass, all_pos, all_vel, all_dists, gas_mass
         all_data[i]['CPOS']= all_data[i]['POS ']-np.array(gpos)
 
     res=O()
-    for i in all_data:
+    for i in [-1]:#all_data:
 
         J_vector = np.cross( all_data[i]['CPOS'], all_data[i]['MOME'] )
         J_sum = np.sum(J_vector,axis=0)
@@ -400,7 +397,7 @@ def spinparameter (center, rcri, all_mass, all_pos, all_vel, all_dists, gas_mass
         else:
             res.Lambda_all = Lambda
             res.Jspec_all = J_modi/Mtypein
-
+        """
         mask_in =  all_data[i]['DIST']<(0.3*rcri)
         mask_tot_in =  all_data[-1]['DIST']<(0.3*rcri)
 
@@ -417,7 +414,7 @@ def spinparameter (center, rcri, all_mass, all_pos, all_vel, all_dists, gas_mass
         else:
             res.Lambda_all = Lambda_in
             res.Jspec_all = J_modi_in/Mtypein
-
+        """    
     return res
 
 
@@ -456,9 +453,11 @@ def memo(maxsize=None):
     return decorator
 
 @memo(maxsize=_cache_size)
-def _fof_info(filename, is_snap=False):
+def fof_info(filename, is_snap=False):
     #print("_fof info caching ",filename,is_snap)
     return g.GadgetFile(filename, is_snap)
+
+
 
 class PostProcessing(object):
 
@@ -474,27 +473,29 @@ class PostProcessing(object):
     n_files = 10
     has_keys = False
     fof_blocks = ['MCRI','GPOS','RCRI']
-    sf_blocks = ['SMST','SPOS','GRNR']
+    sf_blocks = ['SMST','SPOS','GRNR','RHMS']
     snap_all_blocks = ['POS ','VEL ','MASS']#,'ID  ']
     snap_gas_blocks = ['U   ','TEMP']
     subfind_and_fof_same_file = False
     subfind_files_range = None
     random_subset_size = 2000
+    myinfo=None
     @memo()
     def fof_file(self,i_file):
-        global _fof_info
+        global fof_info
         filename = '%s.%d'%(self.group_base,i_file)
         #print("CALL from cache", filename)
         
-        f = _fof_info(filename, is_snap=False)
-        if f.info is not None and _fof_info is None: 
-            _fof_info=f.info
-        if f.info is None and _fof_info is not  None:
-            f.info = _fof_info
-        if f.info is None and _fof_info is None:
+        f = fof_info(filename, is_snap=False)
+
+        if f.info is not None and self.myinfo is None: 
+            self.myinfo=f.info
+        if f.info is None and self.myinfo is not  None:
+            f.info = self.myinfo
+        if f.info is None and fof_info is None:
             self.fof_file(i_file-1)
-            f.info = _fof_info
-        if _fof_info is None:
+            f.info = self.myinfo
+        if fof_info is None:
             raise Exception("unable to recover the fof.info block")
         return f
     @memo()
@@ -563,17 +564,30 @@ class PostProcessing(object):
     def z(self):
         return self.header().redshift
     @memo()
+    def gpos(self):
+        return self.fof()['GPOS']
+    @memo()
+    def rhms_central(self):
+        satellites = self.satellites()
+        if len(satellites)==0:
+            return np.nan
+        positions = satellites['SPOS']
+        size=self.box_size()
+        gpos = self.gpos()
+        distances = np.sqrt((positions[:,0]-gpos[0])**2.+(positions[:,1]-gpos[1])**2.+(positions[:,2]-gpos[2])**2.)
+        return satellites['RHMS'][np.argmin(distances)]
+    @memo()
     def fossilness(self):
             size=self.box_size()
-            cluster_center = self.fof()['GPOS']
+            cluster_center = self.gpos()
             satellites = self.satellites()
             radius = self.fof()['RCRI']
             has_satellites=False
             if 'SPOS' in satellites:
                 has_satellites=True
                 positions = satellites['SPOS']
-                positions = g.periodic(positions,center=self.fof()['GPOS'],periodic=size)
-                gpos= self.fof()['GPOS']
+                positions = g.periodic_position(positions,center=self.gpos(),periodic=size)
+                gpos= self.gpos()
                 distances = np.sqrt((positions[:,0]-gpos[0])**2.+(positions[:,1]-gpos[1])**2.+(positions[:,2]-gpos[2])**2.)
                 #print(distances)
                 if self.dm:
@@ -585,47 +599,77 @@ class PostProcessing(object):
             if has_satellites:
                 return fossilness(stellar_masses[mask_distances],distances[mask_distances])
             
-            else:
-                print (satellites)
+
             return fossilness(np.nan, np.nan)
     def mcri(self):   return self.fof()["MCRI"]
     def rcri(self):   return self.fof()["RCRI"]
     @memo()
+    def can_read(self):
+        return os.path.exists(self.snap_base+'.0') or os.path.exists(self.snap_base)
+    def fraction_cluster_match(self1, self2, distance=1000., fraction_ids=0.5, core_ids1=None):
+        if core_ids1 is None:
+            core_ids1=self1.core_ids()
+        core_ids2= self2.core_ids()
+        #print(core_ids1)
+        #print(core_ids2)
+        i = np.intersect1d(core_ids1, core_ids2,assume_unique=True)
+        #print(len(i), max((len(core_ids1), len(core_ids2))), float(len(i))/float(max((len(core_ids1), len(core_ids2)))))
+        return float(len(i))/float(max((len(core_ids1), len(core_ids2))))
+
+    @memo()
+    def core_ids(self):
+        radius=self.rcri()/3.
+        all_data =  self.read_new_ptypes_blocks_radius(radius=radius, blocks=  ["POS ","ID  "],ptypes=  1,join_ptypes=True,only_joined_ptypes=True)
+
+        mask = (
+        (np.abs(all_data["POS "][:,0]-self.gpos()[0])<radius) & 
+        (np.abs(all_data["POS "][:,1]-self.gpos()[1])<radius) & 
+        (np.abs(all_data["POS "][:,2]-self.gpos()[2])<radius) 
+        )
+        
+        return np.sort(all_data["ID  "][mask])
+
+    @memo()
     def read_new(self):
         if self.dm:
-            all_data =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'],
-                                            self.rcri(),
-                                            self.snap_all_blocks,
-                                                [0,1,2,3,4,5], 
-                                            join_ptypes=False,
-                                            only_joined_ptypes=False)
-            #print (all_data)
-            add_cut(all_data, self.fof()['GPOS'], self.rcri())
-            g.join_res(all_data, self.snap_all_blocks,  True, False)
+            blocks=self.snap_all_blocks
+            ptypes=[1,2]
         else:
-            all_data =  g.read_particles_in_box(self.snap_base, self.fof()['GPOS'],
-                                            self.rcri(),
-                                            self.snap_all_blocks+self.snap_gas_blocks,
-                                            [0,1,2,3,4,5], 
-                                            join_ptypes=False,
-                                            only_joined_ptypes=False)
-            add_cut(all_data, self.fof()['GPOS'], self.rcri())
-            g.join_res(all_data, self.snap_all_blocks+self.snap_gas_blocks,  True, False)
+            blocks=self.snap_all_blocks+self.snap_gas_blocks
+            ptypes=[0,1,4,5]
+        all_data = self.read_new_ptypes_blocks_radius(ptypes=ptypes, blocks=blocks,  radius=self.rcri(),join_ptypes=False, only_joined_ptypes=False)
+        add_cut(all_data, self.gpos(), self.rcri())
+        g.join_res(all_data, blocks,  True, False)
         return all_data
     @memo()
+    def read_new_ptypes_blocks_radius(self,ptypes=None, blocks=None, radius=None,join_ptypes=False, only_joined_ptypes=False):
+        #print (self.dm, ptypes, blocks, self.snap_base)
+        return  g.read_particles_in_box(self.snap_base, self.gpos(),
+                                    radius,
+                                    blocks,
+                                    ptypes,
+                                    join_ptypes=join_ptypes,
+                                    only_joined_ptypes=only_joined_ptypes)
+
+    @memo()
     def c200c(self):
-        fof_pos = self.fof()['GPOS']
+        #print("dm?", self.dm)
+        fof_pos = self.gpos()
         fof_r = self.fof()['RCRI']
         dm_data = self.read_new()[1]
+
         dm_mass_data=dm_data['MASS']
         dm_pos_data=dm_data['POS ']
         r=nfw_fit(dm_mass_data,dm_pos_data,fof_pos,fof_r)
-        return O(**{"rho0":r.x[0],"c":1./r.x[1],"rs":r.x[1]*fof_r})
+        if r is not None:
+            return O(**{"rho0":r.x[0],"c":1./r.x[1],"rs":r.x[1]*fof_r})
+        else:
+            return O(rho0=np.nan, c=np.nan, rs=np.nan)
     @memo()
     def spherical(self,ptype):
         #print (ptype, self.read_new()[ptype]['POS '])
         #print(self.read_new()[ptype])
-        return  g.to_spherical(self.read_new()[ptype]['POS '],self.fof()['GPOS'])
+        return  g.to_spherical(self.read_new()[ptype]['POS '],self.gpos())
     @memo()
     def potential(self):
         spherical = self.spherical(-1)
@@ -637,6 +681,46 @@ class PostProcessing(object):
                                        cut_type="sphere",
                                        spherical=spherical
         )
+
+    def pictures_ptypes(self):
+        import matplotlib.pyplot as plt
+        all_data =  self.read_new_ptypes_blocks_radius(radius= self.rcri(), blocks=  ["POS "],ptypes=  [0,1,4])
+        add_cut(all_data, self.gpos(), self.rcri(),sample=0.05)
+        if self.dm:
+            bh_data =  {5:{"POS ":[], "MASS":[]}}
+        else:
+            bh_data =  self.read_new_ptypes_blocks_radius(radius= self.rcri(), blocks=  ["POS ","MASS"],ptypes=  [5])
+            add_cut(bh_data, self.gpos(), self.rcri())
+
+
+        f, ax = plt.subplots()
+        if len(all_data[0]['POS '])>0:
+            ax.scatter(all_data[0]['POS '][:,0], all_data[0]['POS '][:,1],color='red',marker='.',s=1)
+        if len(all_data[1]['POS '])>0:
+            ax.scatter(all_data[1]['POS '][:,0], all_data[1]['POS '][:,1],color='black',marker='.',s=1)
+        if len(all_data[4]['POS '])>0:
+            ax.scatter(all_data[4]['POS '][:,0], all_data[4]['POS '][:,1],color='blue',marker='.',s=1)
+        if len(bh_data[5]['POS '])>0:
+            ax.scatter(bh_data[5]['POS '][:,0], bh_data[5]['POS '][:,1],marker='.',s=bh_data[5]['MASS']*500.,color='yellow')
+
+        circle2 = plt.Circle((self.gpos()[0],self.gpos()[1]), self.rcri(), color='red', fill=False)
+        circle3 = plt.Circle((self.gpos()[0],self.gpos()[1]), self.rcri()/self.c200c().c, color='red', fill=False)
+
+        #plt.xlim(prope['cluster_fof']['GPOS'][0]-prope['cluster_fof']['RCRI'], prope['cluster_fof']['GPOS'][0]+prope['cluster_fof']['RCRI'])
+        #plt.ylim(prope['cluster_fof']['GPOS'][1]-prope['cluster_fof']['RCRI'], prope['cluster_fof']['GPOS'][1]+prope['cluster_fof']['RCRI'])
+
+        ax.add_artist(circle2)
+        ax.add_artist(circle3)
+
+
+        #ax.set_title('%s z=%.2f'%(save_file,prope['z']))
+        #print(self.z())
+        ax.set_title('%s/%d z=%.2f a=%.2f'%(self.output_path, self.cluster_id, self.z(), 1./(1.+self.z())))
+        ax.set_xlabel('x [kpc]')
+        ax.set_ylabel('y [kpc]')
+        f.savefig(self.output_path+'ptypes')
+
+
     def pictures(self):
 
         import matplotlib.pyplot as plt

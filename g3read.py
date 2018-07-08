@@ -143,13 +143,20 @@ def to_cartesian(rthetaphi):
     z = r * np.cos( theta )
     return np.array([x,y,z])
 
+def non_periodic_distance(pos1, pos2):
+    return np.sqrt((pos1[0]-pos2[0])**2.+(pos1[1]-pos2[1])**2.+(pos1[2]-pos2[2])**2.)
 
 
-def periodic(x, periodic=None, center=None):
+
+def periodic_position(x, periodic=None, center=None):
     if periodic is not None:
         for axis in (0,1,2):
             x[:,axis]=periodic_axis(x[:,axis], periodic, center[axis])
     return x
+
+def periodic_distance(pos1, pos2, periodic=None):
+    pos2 = periodic_position(np.array([pos2]), periodic=periodic, center=pos1)[0]
+    return non_periodic_distance(pos1, pos2)
 
 
 class GadgetBlock(object):
@@ -243,7 +250,7 @@ class GadgetHeader(object):
         "Construct a header from values, instead of a datastring."""
         assert(len(mass) == 6)
         assert(len(npart) == 6)
-        # Mass of each particle type in this file. If zero,
+        # Massa of each particle type in this file. If zero,
         # particle mass stored in snapshot.
         self.mass = mass
         # Time of snapshot
@@ -587,9 +594,13 @@ class GadgetFile(object):
         and reading a maximum of p_toread particles"""
         #name = _to_raw(name)
 
+            
         p_read = 0
+
         cur_block = self.blocks[name]
         parts = self.get_block_parts(name, ptype)
+
+
         if p_start==None: p_start = self.get_start_part(name, ptype)
         if p_toread > parts:
             p_toread = parts
@@ -724,8 +735,15 @@ class GadgetFile(object):
 
 
     def get_data_shape(self, g_name, ptype):
-        if g_name=="INFO" or self.info is None:
-
+        try:
+            if g_name=="INFO" or self.info is None or (g_name not in self.info and g_name in self.blocks):
+                dtype=np.float32
+        except:
+            print (g_name)
+            print (ptype)
+            print (self.info)
+            print(self.blocks)
+        if g_name=="INFO" or self.info is None or (g_name not in self.info and g_name in self.blocks):
            dtype=np.float32
            partlen = self.blocks[g_name].partlen
            if g_name=="ID  ":
@@ -733,11 +751,15 @@ class GadgetFile(object):
            dim = np.dtype(dtype).itemsize
            cols = int(partlen/dim)
            return cols,dtype
+        elif g_name == "MASS" and "MASS" not in self.info:
+            return 1,np.float32
         else:
            info = self.info
-           if g_name not in self.info:
+           if g_name not in self.info and g_name!="MASS":
+               #print(ptype, self.header.mass, self.header.mass[ptype])
                raise Exception("block not found %s"%g_name)
-
+           elif g_name not in self.info:
+               return 1,np.float32
            binfo = self.info[g_name]
            stype = binfo[1]
            sdim = int(binfo[2])
@@ -767,6 +789,7 @@ class GadgetFile(object):
 
        g_name = block
        cols,dtype = self.get_data_shape (g_name, ptype)
+       #print(g_name, cols, dtype)
        if p_toread is None: 
            if (debug):
                print("get block parts()")
@@ -777,8 +800,16 @@ class GadgetFile(object):
        if (debug):
            print(f_parts, p_start)
             
-
-       (f_read, f_data) = self.get_block(g_name, ptype, f_parts, p_start)
+       #print(ptype, g_name,  f_parts, p_start, self.header.npart[ptype], self.header.mass[ptype])
+       if (g_name == "MASS" and 
+           "MASS" not in self.info and 
+           p_start is None and 
+           self.header.npart[ptype]>0 and 
+           self.header.mass[ptype]>0.):
+           f_read = f_parts
+           f_data = np.full(f_read, self.header.mass[ptype])
+       else:
+           (f_read, f_data) = self.get_block(g_name, ptype, f_parts, p_start)
 
        
        if f_read != f_parts:
@@ -791,7 +822,7 @@ class GadgetFile(object):
            print(block, ptype, f_data.shape,'cols', cols, 'f_data',len(f_data), 'f_data/cols', len(f_data)/cols)
        if cols>1: f_data.shape = (int(len(f_data)/cols),cols)
        if periodic is not None and block in _periodic and center is not None:
-           f_data = periodic(f_data, periodic=self.header.BoxSize, center=center)
+           f_data = periodic_position(f_data, periodic=self.header.BoxSize, center=center)
        return f_data
 
     def add_file_block(self, name, blocksize, partlen=4, dtype=np.float32, ptypes=-1):
@@ -1174,11 +1205,15 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
         if not os.path.isfile(snap_file_name+'.key.index'):
             has_super_index=False
 
+        #print("1", "has_super_index",  has_super_index, "has_keys", has_keys)
             
         if   not   os.path.isfile(snap_file_name+".0.key"):
             has_keys = False
+
             
-        if not has_keys:
+        #print("2", "has_super_index",  has_super_index, "has_keys", has_keys)
+        if not has_super_index:
+            #print("3", "has_super_index",  has_super_index, "has_keys", has_keys)
             return read_particles_in_files(snap_file_name,blocks, ptypes=ptypes,center=ce,periodic=GadgetFile(snap_file_name).header.BoxSize,  join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
 
         fr=ce-d
@@ -1186,7 +1221,7 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
 
         hkey=GadgetFile(snap_file_name+".0.key",is_snap=False)
         if "KEY " not in hkey.blocks.keys():
-            has_super_index = False
+            has_keys = False
         corner=hkey.header.mass[0:3]
         fac=hkey.header.mass[3]
         bits=hkey.header.flag_feedback
@@ -1210,11 +1245,13 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
                 for k in range(ifr[2],ito[2]+1):
                     keylist.append(peano_hilbert_key(hkey, i,j,k, integer_pos=True))
 
-        if has_super_index:
+        #print("4", "has_super_index",  has_super_index, "has_keys", has_keys)
+        if has_keys:
             return read_particles_given_key(snap_file_name,blocks,keylist,ptypes=ptypes,
                                             center=ce,periodic=hkey.header.BoxSize, join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
-        else:
+        elif has_super_index:
 
             return read_particles_only_superindex(snap_file_name,blocks,keylist,ptypes=ptypes, center=ce,
                                                  periodic=hkey.header.BoxSize, join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
-
+        else:
+            raise Exception("%s not sure if the file has key/superindexes or not."%(snap_file_name))
