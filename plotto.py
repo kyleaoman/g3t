@@ -8,43 +8,12 @@ import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
 import g3read as g
-
-
-
-def ureg(**defaults):
-    from pint import Context
-    from pint import UnitRegistry
-    u = UnitRegistry()
-    u.define('Msun = 1.99885e30kg')
-    u.define("hubble = [hubbli]")
-    u.define("scalefactor = [scalefactori]")
-    u.define('gmass = 1e10 Msun/hubble')
-    u.define('cmass = Msun/hubble')
-    u.define('clength = kpc/hubble*scalefactor')
-    u.define('glength = clength')
-    u.define('cvelocity = scalefactor*km/s')
-    u.define('gvelocity_a = (scalefactor**0.5)km/s')
-    u.define('gvelocity_noa = km/s')
-    c = Context('comoving',defaults={"hubble":None,"scalefactor":None})
-    def f_1(u,v,  hubble = None, scalefactor=None):
-        m=v.to(u.clength).magnitude
-        if hubble is not None and scalefactor is not None:
-            return u.kpc*m*scalefactor/hubble
-        else:
-            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
-    def f_2(u,v,  hubble = None, scalefactor=None):
-        m=v.to(u.kpc).magnitude
-        if hubble is not None and scalefactor is not None:
-            return u.clength/scalefactor*hubble
-        else:
-            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
-    c.add_transformation('[length] * [scalefactori] / [hubbli]', '[length]',f_1)
-    c.add_transformation('[length]','[length] * [scalefactori] / [hubbli]', f_2)
-    u.add_context(c)
-    if(len(defaults)>0):
-        u.enable_contexts(c,**defaults)
-
-    return u
+from pint import Context
+from pint import UnitRegistry
+    
+import pandas as pd
+import pp
+ureg = pp.ureg
 
 
 class O(object):
@@ -54,7 +23,32 @@ class O(object):
     pass
 
 import numpy as np
+import matplotlib.units 
+class SubclassedSeries(pd.Series):
 
+    @property
+    def _constructor(self):
+        return SubclassedSeries
+
+    @property
+    def _constructor_expanddim(self):
+        return SubclassedDataFrame
+
+class SubclassedDataFrame(pd.DataFrame):
+
+    @property
+    def _constructor(self):
+        return SubclassedDataFrame
+
+    @property
+    def _constructor_sliced(self):
+        return SubclassedSeries
+    
+#    def __init__(self,*l,**kw):
+#        super(Ciaos, self).__init__(*l, **kw)
+        
+
+        
 class MyArray(np.ndarray):
 
     def __new__(cls, value):
@@ -66,14 +60,13 @@ class MyArray(np.ndarray):
 
 
     def __array_wrap__(self, out_arr, context=None):
-        super(MyArray, self).__array_wrap__(self, out_arr, context)
         return out_arr
 
 def isfloat(val):
     return all([ [any([i.isnumeric(), i in ['.','e']]) for i in val],  len(val.split('.')) == 2] )
 
 class ObservativeTable(object):
-    def __init__(self,  
+    def __new__(self,  
                  from_csv_filename = None,
                  from_csv_reader = None,
                  csv_delimiter_and_skip=' ',
@@ -84,7 +77,8 @@ class ObservativeTable(object):
                  underscore='_', 
                  _uid="id",
                  uregistry=None, 
-                 dollar='='):
+                 dollar=':'):
+        #print(self)
         self.glob = {}
         self.dollar=dollar
         self.ureg = ureg()
@@ -96,7 +90,7 @@ class ObservativeTable(object):
         else:
             self.ureg = uregistry
         if from_csv_reader:
-            yamldata=self.read_csv_reader(from_csv_reader)
+            yamldata=self.read_csv_reader(self, from_csv_reader)
 
 
         elif from_csv_filename:
@@ -106,10 +100,10 @@ class ObservativeTable(object):
             with open(from_csv_filename, "r") as infile:
                 if csv_delimiter:
                     reader = csv.reader(infile, delimiter=csv_delimiter)
-                if csv_delimiter_and_skip:
+                elif csv_delimiter_and_skip:
                     
                     reader = csv.reader(infile, skipinitialspace=True, delimiter=csv_delimiter_and_skip)
-                yamldata=self.read_csv_reader(reader)
+                yamldata=self.read_csv_reader(self, reader)
 
 
         elif from_yaml_filename:
@@ -121,25 +115,37 @@ class ObservativeTable(object):
         elif from_yaml:
             yamldata=yaml.load(from_yaml)#, Loader=yamlordereddictloader.Loader)
 
-        yamldata = self.make_ot_from_yaml(yamldata)
-        self.load(yamldata)
+        yamldata = self.make_ot_from_yaml(self, yamldata)
+        return self.load(self, yamldata)
     def read_csv_reader(self, reader):
         import json
-        headers = next(reader)
-        headers[0] = headers[0][1:]
+        _headers = next(reader)
+        headers=[]
+        for _head in _headers:
+            _head = _head.strip()
+            if _head[0]=='#':
+                _head = _head[1:]
+            if len(_head)==0:
+                continue
+            headers.append(_head)
+        
         dict1 = list()
         globy = {self._uid:"_global"}
         dict1.append(globy)
+        actual_rows = 0
         for row in reader:
             if len(row)==0:
+                continue
+            #print(row, len(row), len(row[0]))
+            if len(row[0])>0 and row[0][0] =='#':
+                if actual_rows>0:
                     continue
-            if row[0][0] =='#':
                 comment = ' '.join(row)[1:]
 
                 j = yaml.load(comment)
 
                 if len(j)>0:
-                    newj={}
+                    newj=globy
                     for key in j:
                         value = j[key]
                         if self.dot in key:
@@ -149,27 +155,71 @@ class ObservativeTable(object):
                             newj[supkey][subkey] = value
                         else:
                             newj[key]=value
+                    #print(newj)
                     globy.update(newj)
                     
 
 
             else:
+                #print(row, headers)
                 dtype = float
-                o = {}
+                o={}
                 for key, value in zip(headers, row):
-                    dtype = float
-
-                    if globy and key in globy and "_dtype" in globy[key]:
-                        dtype=np.__dict__[globy[key]["_dtype"]]
-                    elif not isfloat(value):
-                        if key not in globy:
+                    keysvalues={}
+                    #print('keyvalue', key, value)
+                    if self.dollar in value:
+                        if globy and key not in globy:
+                            globy[key]={}
+                        if "_dtype" not in globy[key]:
+                            globy[key]["_dtype"]='float'
+                            #print(value, self.dollar in value)
+                        for subkeyvalue in value.split():
+                            if self.dollar in subkeyvalue:
+                                subkey,subvalue = subkeyvalue.split(self.dollar)
+                                keysvalues[key+'.'+subkey]=subvalue
+                            else:
+                                keysvalues[key]=subkeyvalue
+                    else:
+                        keysvalues[key]=value
+                    #print(globy)
+                    for subkey in keysvalues:
+                        value = keysvalues[subkey].strip()
+                        dtype = float
+                        #print(value)
+                        if value =='':
+                             o[ subkey]=np.nan
+                        elif globy and key in globy and "_dtype" in globy[key]:
+                            
+                            dtype=np.__dict__[globy[key]["_dtype"]]
+                            #print('value:')
+                            #print(value)
+                            if '_nan_on_error' in globy and globy['_nan_on_error']:
+                                try:
+                                    o[ subkey]=np.array(value, dtype=dtype)
+                                except:
+                                    o[ subkey]=np.nan
+                            else:
+                                o[ subkey]=np.array(value, dtype=dtype)
+                            
+                            #print("1", dtype)
+                        elif not isfloat(value):
+                            if key not in globy:
+                                
                                globy[key]={}
-                        globy[key]["_dtype"]="object"
-                        dtype=np.object
-                    
-                    o[key]= np.array(value, dtype=dtype)
-                dict1.append(o)
+                            #print("value is not float", value)
+                            globy[key]["_dtype"] = "object"
+                            dtype=str
+                            o[ subkey] = value
+                            #print("2")
+                            
+                        else:
+                            
 
+                            o[subkey] =  np.array(value, dtype=dtype)
+                            #print("3",dtype)
+                dict1.append(o)
+                actual_rows += 1
+        #print(globy)      
         return dict1
     def make_ot_from_yaml(self, yamldata):
         if isinstance(yamldata, list):
@@ -194,7 +244,7 @@ class ObservativeTable(object):
             return yamldata
     def append(self, column_name, subcolumn_name, myid, value):
         #
-        self.new_column(column_name, subcolumn_name)
+        self.new_column(self, column_name, subcolumn_name)
         mypos = self.columns[column_name][self._uid]==myid
 
         try:
@@ -205,19 +255,20 @@ class ObservativeTable(object):
 
             raise Exception("Impossible to add value %s to column '%s'.'%s'.'%s'"%(str(value), column_name, subcolumn_name, str(mypos)))
         if subcolumn_name == "pm":
-            self.append(column_name, "p", myid, value)
-            self.append(column_name, "m", myid, value)
+            self.append(self, column_name, "p", myid, value)
+            self.append(self, column_name, "m", myid, value)
 
         if subcolumn_name == "p":
-            self.append(column_name, "plus", myid, value)
+            self.append(self, column_name, "plus", myid, value)
 
         if subcolumn_name == "m":
-            self.append(column_name, "minus", myid, value)
+            self.append(self, column_name, "minus", myid, value)
 
 
-    def new_column(self, column_name, subcolumn_name = None):
+    def new_column(self, column_name, subcolumn_name  ):
         #
         dtype=np.float32
+        #print("    new_column", column_name, "subc", subcolumn_name)
         if column_name in self.glob and "_dtype" in self.glob[column_name]:
             dtype = np.__dict__[self.glob[column_name]["_dtype"]]
         if column_name not in self.columns:
@@ -237,13 +288,14 @@ class ObservativeTable(object):
             self.columns[column_name][subcolumn_name] = np.full(self.n_objects, np.nan, dtype = dtype)
 
     def load(self, data):
+        #print(data)
         if '_global' in data:
             self.glob.update(data['_global'])
         self.object_names = []
         for object_name in data:
             if object_name[0]==self.underscore:
                 continue
-            self.object_names.append(object_name)
+            self.object_names.append( object_name)
         self.n_objects = len(self.object_names)
         self.columns={}
         for object_name in self.object_names:
@@ -255,18 +307,22 @@ class ObservativeTable(object):
                     column_name = key.split(self.dot,1)[0]
                 else:
                     column_name = key
-                self.new_column(column_name)
+                self.new_column(self, column_name, None)
 
                 if self.dot in key:
                     subcolumn_name = key.split(self.dot,1)[1]
-                    self.append(column_name, subcolumn_name, object_name, value)
+                    self.append(self, column_name, subcolumn_name, object_name, value)
                 else:
+                    #print("else:", data[object_name][key],data[object_name][key].__class__)
                     if isinstance(data[object_name][key], dict):
+                        #print("A")
                         for subcolumn_name in data[object_name][key]:
                             
-                            self.append(column_name, subcolumn_name, object_name,  value[subcolumn_name])
+                            self.append(self, column_name, subcolumn_name, object_name,  value[subcolumn_name])
                     elif isinstance(data[object_name][key], str):
+                        #print("N")
                         subvalues = value.split()
+                        #print("else ->", data[object_name][key], subvalues)
                         for subkeyvalue_withspaces in subvalues:
                             subkeyvalue = subkeyvalue_withspaces.strip()
                             #print("            subkeyvalue", subkeyvalue, self.dollar not in subkeyvalue)
@@ -275,9 +331,11 @@ class ObservativeTable(object):
                                 subvalue = subkeyvalue
                             else:
                                 subkey, subvalue = subkeyvalue.strip().split(self.dollar,1)
-                            self.append(column_name, subkey, object_name,  subvalue)
+                            self.append(self, column_name, subkey, object_name,  subvalue)
                     else:
-                        self.append(column_name, "value", object_name, value)
+                        #print("C")
+                        self.append(self, column_name, "value", object_name, value)
+        
         for column_name in self.columns:
             mya = MyArray(self.columns[column_name]["value"])
             factor=1.
@@ -289,9 +347,10 @@ class ObservativeTable(object):
             elif "_units" in self.columns[column_name] and  mya.dtype==float:
                 factor = self.columns[column_name]["_units"]
                 convert = lambda mya: mya*factor
-
+            #print(mya)
             col =  convert(mya)
             col._convert = convert
+            self.columns[column_name]['value']=col
             for subcol in self.columns[column_name]:
                 if subcol=="value":
                     continue
@@ -300,21 +359,53 @@ class ObservativeTable(object):
                     d=subcol[0]!=self.underscore
                     #print(column_name,"subcol", subcol, "self._uid", self._uid, " subcol!=self._uid",c,"subcol[0]!=self.underscore",d)
                     if d and c:
-                            col.__dict__[subcol] = convert(self.columns[column_name][subcol])
+                            self.columns[column_name][subcol] = convert(self.columns[column_name][subcol])
                     else:
                         if not isinstance(factor, float) and subcol!="_units":
-                            col.__dict__[subcol] = self.columns[column_name][subcol]
+                            self.columns[column_name][subcol] = self.columns[column_name][subcol]
                             pass
-            
-            self.__dict__[column_name] = col
-        del self.glob
-        del self.columns
+            self.columns[column_name]
+        #print(data)
+        sorted_keys = sorted(self.columns.keys())
+        subsorted_keys = ['value','plus','minus']
+        labels1 = []
+        labels2 = []
+        isorted=-1
+        rdataset = []
+        for sorted_key in sorted_keys:
+            isorted+=1
+            isubsorted=-1
+            for subsorted_key in subsorted_keys:
+                isubsorted+=1
+                if subsorted_key in self.columns[sorted_key] :
+                    labels1.append(isorted)
+                    labels2.append(isubsorted)
+        
+        for irow in range(len(self.columns[sorted_keys[0]]['value'])):
+            row = []
+            for sorted_key in sorted_keys:
+                for subsorted_key in subsorted_keys:
+                    if subsorted_key in self.columns[sorted_key] :
+                        #print(self.columns[sorted_key][subsorted_key][irow])
+                        row.append(self.columns[sorted_key][subsorted_key][irow])
+            rdataset.append(row)
 
+        mindex = pd.MultiIndex(
+                levels=[sorted_keys, subsorted_keys],
+                labels=[labels1, labels2]
+         )
+
+        df = SubclassedDataFrame(rdataset, columns=mindex)
+        """for column in df:
+                df[column]=Ciaos(df[column])
+                print(Ciaos,'->',df[column].__class__)"""
+        #print(df)
+        return df
 def query(DB):
     def simul(q):
         with contextlib.closing(sqlite3.connect(DB)) as con:
             with con as cur:
-               return pd.read_sql_query(q, cur)
+                return pd.read_sql_query(q, cur)
     return simul
 
 def supermap(df, f, p=0.005):
@@ -336,10 +427,10 @@ def plot_f(ax, xmin, xmax, f, bins=20,logscale=True):
 
    
 
-def gen_supermap(data):
+def gen_supermap(data, poutside=0.02):
         from matplotlib.colors import LinearSegmentedColormap
         lscm=None
-        poutside=0.02
+      
         all_c = data
         maska=(~np.isnan(all_c)) & (all_c>0.)
         all_c = all_c[maska]
@@ -408,3 +499,162 @@ def gen_supermap(data):
         cmap=cmap=lscm
         cmap.set_bad('white')
         return cmap,norm
+
+    
+
+import io, os, sys, types
+
+from IPython import get_ipython
+from nbformat import read
+from IPython.core.interactiveshell import InteractiveShell
+
+def find_notebook(fullname, path=None):
+    """find a notebook, given its fully qualified name and an optional path
+
+    This turns "foo.bar" into "foo/bar.ipynb"
+    and tries turning "Foo_Bar" into "Foo Bar" if Foo_Bar
+    does not exist.
+    """
+    name = fullname.rsplit('.', 1)[-1]
+    if not path:
+        path = ['']
+    for d in path:
+        nb_path = os.path.join(d, name + ".ipynb")
+        if os.path.isfile(nb_path):
+            return nb_path
+        # let import Notebook_Name find "Notebook Name.ipynb"
+        nb_path = nb_path.replace("_", " ")
+        if os.path.isfile(nb_path):
+            return nb_path
+
+
+class NotebookLoader(object):
+    """Module Loader for Jupyter Notebooks"""
+    def __init__(self, path=None):
+        self.shell = InteractiveShell.instance()
+        self.path = path
+
+    def load_module(self, fullname):
+        """import a notebook as a module"""
+        path = find_notebook(fullname, self.path)
+
+        print ("importing Jupyter notebook from %s" % path)
+
+        # load the notebook object
+        with io.open(path, 'r', encoding='utf-8') as f:
+            nb = read(f, 4)
+
+
+        # create the module and add it to sys.modules
+        # if name in sys.modules:
+        #    return sys.modules[name]
+        mod = types.ModuleType(fullname)
+        mod.__file__ = path
+        mod.__loader__ = self
+        mod.__dict__['get_ipython'] = get_ipython
+
+        # extra work to ensure that magics that would affect the user_ns
+        # actually affect the notebook module's ns
+        save_user_ns = self.shell.user_ns
+        self.shell.user_ns = mod.__dict__
+
+        if True:#try:
+            for cell in nb.cells:
+                if cell.cell_type == 'code':
+                    code = self.shell.input_transformer_manager.transform_cell(cell.source)
+                    #print("code:",code)
+                    #print(mod.__dict__)
+                    exec(code, mod.__dict__)
+        #finally:
+            self.shell.user_ns = save_user_ns
+        sys.modules[fullname] = mod
+        return mod
+
+    
+    
+class NotebookFinder(object):
+    """Module finder that locates Jupyter Notebooks"""
+    def __init__(self):
+        self.loaders = {}
+
+    def find_module(self, fullname, path=None):
+        nb_path = find_notebook(fullname, path)
+        if not nb_path:
+            return
+
+        key = path
+        if path:
+            # lists aren't hashable
+            key = os.path.sep.join(path)
+
+        if key not in self.loaders:
+            self.loaders[key] = NotebookLoader(path)
+        return self.loaders[key]
+
+import sys
+sys.meta_path.append(NotebookFinder())
+
+
+import matplotlib.units
+
+import pint
+
+class PintAxisInfo(matplotlib.units.AxisInfo):
+    """Support default axis and tick labeling and default limits."""
+
+    def __init__(self, units):
+        """Set the default label to the pretty-print of the unit."""
+        #print("untis," ,units)
+        if units is not None:
+            super(PintAxisInfo, self).__init__(label='{:P}'.format(units))
+        else:
+            super(PintAxisInfo, self).__init__()
+
+
+class PintConverter(matplotlib.units.ConversionInterface):
+    """Implement support for pint within matplotlib's unit conversion framework."""
+
+    def __init__(self, registry):
+        super(PintConverter, self).__init__()
+        self._reg = registry
+
+    def convert(self, value, unit, axis):
+        """Convert :`Quantity` instances for matplotlib to use."""
+        if isinstance(value, (tuple, list)):
+            return [self._convert_value(v, unit, axis) for v in value]
+        else:
+            return self._convert_value(value, unit, axis)
+
+    def _convert_value(self, value, unit, axis):
+        #print("self", self)
+        #print("value", value)
+        #print("unit", unit)
+        #print("axis", axis)
+        """Handle converting using attached unit or falling back to axis units."""
+        if hasattr(value, 'units'):
+            return value.to(unit).magnitude
+        else:
+            if unit is not None:
+                return self._reg.Quantity(value, axis.get_units()).to(unit).magnitude
+            else:
+                #print(value)
+                return value
+
+    @staticmethod
+    def axisinfo(unit, axis):
+        """Return axis information for this particular unit."""
+        #print("untis," ,unit, "axis",axis)
+        return PintAxisInfo(unit)
+
+    @staticmethod
+    def default_units(x, axis):
+        """Get the default unit to use for the given combination of unit and axis."""
+        return getattr(x, 'units', None)
+
+import pandas as pd
+# Register the class
+matplotlib.units.registry[SubclassedSeries] = PintConverter(ureg())
+matplotlib.units.registry[ureg().Quantity] = PintConverter(ureg())
+
+#munits.registry[pd.core.series.Series] = PintConverter(ureg())
+
