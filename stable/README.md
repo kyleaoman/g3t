@@ -1,59 +1,90 @@
 #  Python libraries to read large (Open)Gadget2-3 runs <br/> for info please ask Antonio Ragagnin 
 
-In this folder I collected some python tools to work, to do post processing with gadgt files and to send batch jobs to the <a href="http://c2papcosmosim.uc.lrz.de/" rel="nofollow">c2pap web portal</a>.
+In this folder I collected some python tools to read and do post processing with Gadget files, to send batch jobs to the <a href="http://c2papcosmosim.uc.lrz.de/" rel="nofollow">c2pap web portal</a> and to convert gadget files to HDF5.
 
+You do not need to download all those files, this is a collection of scripts, so read the documentation and just download what you need for your task.
 
 
 # Table of contents
 
-   * [Reading gadget files and super indexes](#reading-gadget-files-and-super-indexes)
-      * [Reading single Gadget2/3 files](#reading-single-gadget23-files)
-      * [Selecting multiple blocks at the same time](#selecting-multiple-blocks-at-the-same-time)
-      * [Accessing blocks for different particle types](#accessing-blocks-for-different-particle-types)
-         * [Periodic boundary](#periodic-boundary)
+   * [Reading Gadget files](#reading-gadget-files)
+      * [Reading single files](#reading-single-files)
+         * [Selecting multiple blocks at the same time](#selecting-multiple-blocks-at-the-same-time)
+         * [Accessing blocks for different particle types](#accessing-blocks-for-different-particle-types)
+         * [Periodic boxes](#periodic-boxes)
          * [Writing a block back to a (new) file](#writing-a-block-back-to-a-new-file)
-      * [Reading from a large simulation (reading simulations with superindexes)](#reading-from-a-large-simulation-reading-simulations-with-superindexes)
+      * [Reading from a large run (with super indexes)](#reading-from-a-large-run-with-super-indexes)
    * [Submit a batch of jobs to the c2pap web portal (<a href="http://c2papcosmosim.uc.lrz.de/" rel="nofollow">http://c2papcosmosim.uc.lrz.de/</a>)](#submit-a-batch-of-jobs-to-the-c2pap-web-portal-httpc2papcosmosimuclrzde)
    * [Convert Gadget2/3 files to HDF5](#convert-gadget23-files-to-hdf5)
 
 
-Reading gadget files and super indexes
-======================================
+Reading gadget files
+====================
 
-You need to download the file `g3read.py`. It contains routines to read and write snapshots in single files (SimCut outpus) and to read large simulations that make use of super indexes (the IDL equivalent of `read_particle_in_a_box`)
+To read gadget files, both snapshots and fof/subfind outputs all you need is `g3read.py`.
+This library is a copy  of the <a href="//github.com/pynbody/pynbody"  rel="nofollow">pynbody library</a> Gadget reader.
+I isolated the `GadgetFile` class, fixed it to read fof/sub files,  files with empty blocks and to read the  Magneticum `INFO` block.
 
-Reading single Gadget2/3 files
-------------------------------
+If you are familiar with pynbody, you will probably be familiar with  `g3read.py` routines.
+And to be clear, you do not need to import/install pynbody to run `g3read.py`.
 
-the function `read_new` can read 1 or multiple blocks for one or multiple particle types (0 is gas, 1 is dark matter, 4 is stars and 5 is black holes). To select particles from all particle types use a particletype = -1.
+`g3read.py` has also support to overwrite gadget blocks, so far no support to create a file from scratch.
+If you need to write a snapshot from scratch I suggest you to use pynbody.
 
-For instance, to select the positions and mass of all particles in a box:
+`g3read` besides containing routines to read and write snapshots in single files (SimCut outpus), it has routines to read large simulations that make use of super indexes (its a port from IDL of Klaus' `read_particles_in_a_box`)
+
+Reading single files
+--------------------
+
+The function `read_new` is a port of Klaus `read_new` with a slightly different signature.
+
+The signature of mine `read_new` is 
+
+``` read_new(filename, blocks, ptypes, join_ptypes=True, only_joined_ptypes=True, center=None, is_snap=False)```
+
+`filename`, `blocks`, `ptypes` contains the file name, one or more blocks and one or more particle type  (usually `0` is gas, `1` is dark matter, `4` stars and `5`  denotes black holes) respectively.
+If `join_ptypes` is set,  all particle type blocks will be concatenated in a new particle type called `-1`.
+If `only_joined_ptypes` is set, only the pseudo particle type `-1` is returned.
+In periodic boxes you can supply  a value of `center`. Note: the positions will **not** be translated of `-center` (and thus centerd on `[0,0,0]`), but they will be centerd on `center`. This parameter is very useful when extracting a single halo near the boundaries and to have all particles close to each other.
+If `is_snap` is false, then the library will avoid some checks on the mass blocks.
+
+
 
 ```python
 import g3read
-f = g3read.GadgetFile("./test/snap_132")               
-pos = f.read_new("POS", -1) #the -1 means to select all particles
-x = pos[:,0]                             
-y = pos[:,1]                             
-mass =   f.read_new("MASS", -1)   
-
+pos = g3read.read_new("./test/snap_132", "POS ", -1) #the -1 means to select all particles
+x = pos[:,0]
+y = pos[:,1]
+mass =  g3read.read_new("./test/snap_132", "MASS", -1)
 ```
-To select them for only gas particles do:
+
+To select nly gas particles do:
 
 ```python
-pos_gas = f.read_new("POS", 0) #the 0 select only gas particles
-x_gas = pos_gas[:,0]                             
-y_gas = pos_gas[:,1]                             
-mass_gas =  f.read_new("MASS", 0)  
+pos_gas =  g3read.read_new("./test/snap_132", "POS ", 0) #the 0 select only gas particles
+x_gas = pos_gas[:,0]
+y_gas = pos_gas[:,1]
+mass_gas =  g3read.read_new("./test/snap_132", "MASS", 0)
 ````
+
+In case you need to read multiple times the same file, you can instantiate a GadgetFile class and refer to it on multiple reads to speed up the reading:
+
+```python
+`f = g3read.GadgetFile("./test/snap_132")
+pos_gas =  f.read_new( "POS ", 0) #the 0 select only gas particles
+x_gas = pos_gas[:,0]
+y_gas = pos_gas[:,1]
+mass_gas =  f.read_new("MASS", 0)
+```
+
 
 Selecting multiple blocks at the same time
 ------------------------------------------
 
-If the first parameter of `read_new` is list of strings (instead of a string as in the previous examples), the function read_new will return a dictionary with each entry for each block
+You can pass a list of blocks to `read_new` and it will return dictionary with the blocks.
 
 ```python
-data = f.read_new(["POS","MASS"], 0) #the -1 means 
+data =  g3read.read_new("./test/snap_132",.read_new(["POS","MASS"], 0) #the -1 means 
 x_gas = data["POS "][:,0]                             
 y_gas = data["POS "][:,1]                             
 mass_gas =  data["MASS"]
@@ -62,10 +93,11 @@ mass_gas =  data["MASS"]
 Accessing blocks for different particle types
 ---------------------------------------------
 
-In case a you try to read a block for a particle type that does not have such a block, the values for that particle type will be NaN. 
-This is very useful when you want to access blocks for both darkmatter and gas particles in one single function calls.
+In addition, you can supply to `read_new` a list of particle types and/or a list of blocks.
+If also the list of particle types is present then the return data will be a dictionary over the particle types
+of the selected one or more blocks.
 
-The following code computes the beta value for a cluster:
+To use all the previous knowledge, the following code computes the beta value for a cluster extracted via SimCut:
 
 ```python
 import numpy as np
@@ -92,8 +124,6 @@ print("sigma velocity [km/s] =  %.1f "%(np.sqrt(sigma_vel)))
 print("mass weighted mean temperature [KeV] = %.2f "%(meanT/1.16e7))
 
 ```
-
-
 If you need to access also the blocks for single particle-type you can do it in two ways:
 
 1) use the block `PTYPE` (Always added) in the following way:
@@ -105,22 +135,10 @@ data = f.read_new(blocks=["POS ","VEL ","TEMP","MASS"], ptypes=[0,1,2,3,4,5])
 gas_temp = data["TEMP"][data["PTYPE"]==0] #zero is for gas,1 dm, 4 stars, 5 BH
 ```
 
-Or you can ask read_new (or read_particles_in_box) to return a different array for each type, in the following way:
+Periodic boxes
+--------------
 
-
-```python
-f = g3read.GadgetFile(filename)
-data = f.read_new(blocks=["POS ","VEL ","TEMP","MASS"], ptypes=[0,1,2,3,4,5], only_joined_ptypes=False)
-
-gas_temp = data[0]["TEMP"]
-dark_matter_masses = data[1]["MASS"]
-all_types_masses= data[-1]["MASS"]
-```
-
-
-### Periodic boundary 
-
-The `read_particles_in_a_box` will take care of adjusting the position of particles in a periodic box so that particles that have a distance from   `center` greater than half-box-size, 
+Both `read_particles_in_a_box` and `read_new` will take care of adjusting the position of particles in a periodic box so that particles that have a distance from   `center` greater than half-box-size, 
 
 You can call `read_new` with the keyword `center` and it will take care of the periodicity of the box:
 
@@ -132,29 +150,12 @@ positions = data["POS "]
 ```
 
 
+## Reading from a large run (with super indexes)
 
-### Writing a block back to a (new) file
+The signature of `g3read.read_particles_in_box` is almost the same of `read_new`.
+As opposed to `read_new`, `g3read.read_particles_in_box` additionally needs the minimum radius of the super indexes reading.
 
-In this example I also use the pacakge `pp.py` that contains a routine to compute the gravitational potential between particles of the snapshot.
-
-```python
-import g3read
-import pp #used only to compute the gravitational potential
-my_filename = "./test/snap_132"
-my_filename_output "./test/new_snap_132"
-f = g3read.GadgetFile(my_filename)
-
-positions = f.read_new("POS ",-1) #-1 means all particles
-masses = f.read_new("MASS",-1)
-potential = pp.gravitational_potential(masses, positions, center).potential
-
-f.write_block("POT ", -1, potential, filename=my_filename_output)
-
-print("done.")
-
-```
-
-## Reading from a large simulation (reading simulations with superindexes)
+In this example I first read the position and radius of a FoF object (from the fof files) and then I extract its properties with `read_particles_in_box`.
 
 ```python
 import g3read
@@ -175,21 +176,40 @@ y=f["POS "][:,1]
 mass =f["MASS"]
 ```
 
+### Writing a blocks back to a (new) file
+
+The class `g3read.GadgetFile` has a function `write_block` that will overwrite a block with a new provided array.
+
+In this example I recompute the gravitational potentail between particles and store it back in a pre-existing `"POT "` block.
+The pacakge `pp.py` contains a routine to compute the gravitational potential between particles of the snapshot.
+
+
+```python
+import g3read, pp 
+my_filename = "./test/snap_132"
+my_filename_output "./test/new_snap_132"
+
+f = g3read.GadgetFile(my_filename)
+positions = f.read_new("POS ",-1) #-1 means all particles
+masses = f.read_new("MASS",-1)
+potential = pp.gravitational_potential(masses, positions, center).potential
+
+f.write_block("POT ", -1, potential, filename=my_filename_output)
+
+```
 
 
 # Submit a batch of jobs to the c2pap web portal (http://c2papcosmosim.uc.lrz.de/)
 
-1) login to the portal
+Given a list of clusters previously extracted from the c2pap web portal (the output file name is `dataset.csv`), the script `c2pap_batch.py` automatize the process of sending the same jobs parameter to all those haloes.
 
-2) filter some clusters of interest and download the dataset in a csv file (e.g. `dataset.csv`)
 
-3) download the file `c2pap_batch.py` rom this repository
+The script takes the parameter `-s <Service name>` where the service name can be `SMAC`,`SimCut`,`PHOX`,`query`,
+the path of the dataset file name `-f <daraset.csv>`, the job parameters must be set with `-p` and must
+consist of the value displayes in the web portal.
 
-4) execute it with `-s <Service name>` where the service name can be `SMAC`,`SimCut`,`PHOX`,`query`. 
+Below a list of all parameters.
 
-6) set the csv file name with `-f daraset.csv`
-
-5) append the service parameters after the `-p` parameter. Below the list of parameters:
 ```
                         Form parameters.
                             SimCut:
@@ -217,6 +237,7 @@ mass =f["MASS"]
                             page
                             limit
 ```
+
 For instance the following will run a SMAC job over all objects in the dataset.csv:
 
 ```bash

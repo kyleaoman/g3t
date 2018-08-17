@@ -1257,3 +1257,7 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
                                                  periodic=hkey.header.BoxSize, join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
         else:
             raise Exception("%s not sure if the file has key/superindexes or not."%(snap_file_name))
+
+
+def read_new(filename, blocks, ptypes, join_ptypes=True, only_joined_ptypes=True,  center=None, is_snap=False):
+    return GadgetFile(filename, is_snap=is_snap).read_new(blocks, ptypes, join_ptypes=True, only_joined_ptypes=True, center=None)
