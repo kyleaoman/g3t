@@ -99,6 +99,8 @@ of the selected one or more blocks.
 
 To use all the previous knowledge, the following code computes the beta value for a cluster extracted via SimCut:
 
+Note that I added the flag `only_join_ptypes=False` in order to access blocks of single particle types. 
+
 ```python
 import numpy as np
 import g3read as g3read
@@ -107,7 +109,7 @@ filename = "snap_060"
 cut_radius = 801. #consider only particles within this cut
 
 f = g3read.GadgetFile(filename)
-data = f.read_new(blocks=["POS ","VEL ","TEMP","MASS"], ptypes=[0,1,2,3,4,5]) #dark matter and star particles will have TEMP=NaN
+data = f.read_new(blocks=["POS ","VEL ","TEMP","MASS"], ptypes=[0,1,2,3,4,5], only_join_ptypes=False) #dark matter and star particles will have TEMP=NaN
 center = np.average(data["POS "],weights=data["MASS"],axis=0)
 
 #the function 'g.to_spherical()' returns data with columns 0,1,2 being rho,theta,phi
