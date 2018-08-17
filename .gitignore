@@ -2,7 +2,7 @@ data/
 tmp/
 test/
 output/
-*_images/
+matcha_images/
 logs/
 *~
 Magneticum/

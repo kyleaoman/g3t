@@ -1,6 +1,6 @@
 set -ev
 export PROP="c200c fossilness"
-export TARGET=2018_jul_4
+export TARGET=2018_sept
 
 . sims.bash; Box0mr_bao_z0; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
 . sims.bash; Box2bhr_bao_z0; db_1e5_22j;MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
