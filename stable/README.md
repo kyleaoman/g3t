@@ -1,5 +1,5 @@
-# Python libraries to read large (Open)Gadget2-3 runs 
-# for info please ask Antonio Ragagnin 
+# Python libraries to read large (Open)Gadget2-3 runs |
+  | for info please ask Antonio Ragagnin 
 
 In this folder I collected some python tools to work, to do post processing with gadgt files and to send batch jobs to the <a href="http://c2papcosmosim.uc.lrz.de/" rel="nofollow">c2pap web portal</a>.
 
