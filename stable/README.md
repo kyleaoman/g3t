@@ -12,7 +12,7 @@ You do not need to download all those files, this is a collection of scripts, so
          * [Selecting multiple blocks at the same time](#selecting-multiple-blocks-at-the-same-time)
          * [Accessing blocks for different particle types](#accessing-blocks-for-different-particle-types)
          * [Periodic boxes](#periodic-boxes)
-         * [Writing a block back to a (new) file](#writing-a-block-back-to-a-new-file)
+         * [Writing a blocks back to a (new) file](#writing-a-blocks-back-to-a-new-file)
       * [Reading from a large run (with super indexes)](#reading-from-a-large-run-with-super-indexes)
    * [Submit a batch of jobs to the c2pap web portal (<a href="http://c2papcosmosim.uc.lrz.de/" rel="nofollow">http://c2papcosmosim.uc.lrz.de/</a>)](#submit-a-batch-of-jobs-to-the-c2pap-web-portal-httpc2papcosmosimuclrzde)
    * [Convert Gadget2/3 files to HDF5](#convert-gadget23-files-to-hdf5)
