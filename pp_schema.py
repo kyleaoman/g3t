@@ -23,6 +23,8 @@ class Snap(BaseModel):
     tag = TextField(null=True)
 
 class FoFFile(BaseModel):
+    class Meta:
+        primary_key = False
     snap = ForeignKeyField(Snap, backref='foffiles')
     ifile = IntegerField()
     id_first_cluster = IntegerField()

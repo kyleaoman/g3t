@@ -123,6 +123,8 @@ CREATE UNIQUE INDEX {x}_i  ON {x} ("#id_Cluster");
         printf(q_insert_raw, e=True)
         print(vs)
         print(ks)
+        if (len(vs)==0):
+            continue
         q_insert = q_insert_raw.format(outfile=outfile, x='tmp',snap_id=snap.id, max_id_cluster=max_id_cluster, min_id_cluster = min_id_cluster, start_id_in_pp=start_id_in_pp,
                                        vs=','.join(vs), xks=','.join(['tmp.%s'%v for v in ks])
         )

@@ -20,7 +20,7 @@ def printf(s,e=False):
     fd.write(s)
 
 
-def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1.):
+def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1., solmas = 1.989e33,  kparsck= 3.085678e21):
     import scipy
     import scipy.optimize
     m=mass
@@ -47,8 +47,7 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1.):
     dr=(np.log10(R)-np.log10(rmin))/(numrb-1)
     r_in_log=np.log10(rmin)+np.arange(numrb)*dr
     nn=int(numrb)
-    kparsck= 3.085678e21
-    solmas = 1.989e33
+
     rftab=np.zeros(nn)
     rhoftab=np.zeros(nn)
     rs1=np.zeros(nn)
@@ -73,7 +72,7 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1.):
         nftab[ir]=anz
 
     R=oldR
-
+    #f= solmas*hbpar/(kparsck**3*hbpar**-3)
 
     r=rftab
     rho=rhoftab
@@ -130,7 +129,7 @@ def resize(my_data, gpos, radius,cut=None):
     return my_data
 
 
-def add_cut(my_data, gpos, cut, sample=None):
+def add_cut(my_data, gpos, cut, sample=None, add_dist=False, unsafe=False):
     
     for pt in my_data.keys():
         #print(pt, my_data[pt])
@@ -142,15 +141,29 @@ def add_cut(my_data, gpos, cut, sample=None):
             delta=poses-gpos
             dists2=delta[:,0]**2+delta[:,1]**2+delta[:,2]**2
             mask_distance = dists2<(cut*cut)
+            
             if sample is not None:
                 mask = mask_sample & mask_distance
             else:
                 mask = mask_distance
 
             for k in my_data[pt].keys():
-                if len( my_data[pt][k])>0:
+                try:
+                    #if k=='PTYPE' and pt==-1:
+                        #if len( my_data[pt][k])>0:
+                            #my_data[pt][k][]= my_data[pt][k][mask]
+                    #else:
+                    if len( my_data[pt][k])>0:
                         my_data[pt][k]= my_data[pt][k][mask]
+                except:
+                    for k in my_data[pt].keys():
+                        print(pt,k, my_data[pt][k].shape)
+                    if len( my_data[pt][k])>0:
+                        my_data[pt][k]= my_data[pt][k][mask[:len(my_data[pt][k])]]
+                        
 
+            if add_dist:
+                my_data[pt]['DIST']=np.sqrt(dists2[mask])
 
     return my_data
 
@@ -684,8 +697,12 @@ class PostProcessing(object):
 
     def pictures_ptypes(self):
         import matplotlib.pyplot as plt
-        all_data =  self.read_new_ptypes_blocks_radius(radius= self.rcri(), blocks=  ["POS "],ptypes=  [0,1,4])
+        all_data =  self.read_new_ptypes_blocks_radius(radius= self.rcri()+1., blocks=  ["POS "],ptypes=  [0,1,4])
+        print('ciao', self.gpos(), self.rcri(), len(all_data[1]['POS ']), all_data, self.rcri())
         add_cut(all_data, self.gpos(), self.rcri(),sample=0.05)
+
+
+
         if self.dm:
             bh_data =  {5:{"POS ":[], "MASS":[]}}
         else:
@@ -694,10 +711,12 @@ class PostProcessing(object):
 
 
         f, ax = plt.subplots()
+        print('ciau', self.gpos(), self.rcri(), len(all_data[1]['POS ']))
         if len(all_data[0]['POS '])>0:
             ax.scatter(all_data[0]['POS '][:,0], all_data[0]['POS '][:,1],color='red',marker='.',s=1)
         if len(all_data[1]['POS '])>0:
             ax.scatter(all_data[1]['POS '][:,0], all_data[1]['POS '][:,1],color='black',marker='.',s=1)
+            print('ciao', self.gpos(), self.rcri(), np.array([all_data[1]['POS '][:,0], all_data[1]['POS '][:,1]]).T)
         if len(all_data[4]['POS '])>0:
             ax.scatter(all_data[4]['POS '][:,0], all_data[4]['POS '][:,1],color='blue',marker='.',s=1)
         if len(bh_data[5]['POS '])>0:
@@ -706,12 +725,13 @@ class PostProcessing(object):
         circle2 = plt.Circle((self.gpos()[0],self.gpos()[1]), self.rcri(), color='red', fill=False)
         circle3 = plt.Circle((self.gpos()[0],self.gpos()[1]), self.rcri()/self.c200c().c, color='red', fill=False)
 
-        #plt.xlim(prope['cluster_fof']['GPOS'][0]-prope['cluster_fof']['RCRI'], prope['cluster_fof']['GPOS'][0]+prope['cluster_fof']['RCRI'])
-        #plt.ylim(prope['cluster_fof']['GPOS'][1]-prope['cluster_fof']['RCRI'], prope['cluster_fof']['GPOS'][1]+prope['cluster_fof']['RCRI'])
+
 
         ax.add_artist(circle2)
         ax.add_artist(circle3)
 
+        ax.set_xlim([self.gpos()[0]-self.rcri(), self.gpos()[0]+self.rcri()])
+        ax.set_ylim([self.gpos()[1]-self.rcri(), self.gpos()[1]+self.rcri()])
 
         #ax.set_title('%s z=%.2f'%(save_file,prope['z']))
         #print(self.z())
@@ -781,8 +801,7 @@ class PostProcessing(object):
 
 from pint import Context
 from pint import UnitRegistry
-class O(object):
-    pass 
+
 ureg_singleton = O()
 ureg_singleton.ureg=None
 
@@ -809,6 +828,12 @@ def ureg(**defaults):
             return u.kpc*m*scalefactor/hubble
         else:
             raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
+    def g_1(u,v,  hubble = None ,scalefactor=None):
+        m=v.to(u.cmass).magnitude
+        if hubble is not None :
+            return u.Msun*m /hubble
+        else:
+            raise Exception("hubble=%s "%(str(hubble) ))
     def f_2(u,v,  hubble = None, scalefactor=None):
         m=v.to(u.kpc).magnitude
         if hubble is not None and scalefactor is not None:
@@ -817,9 +842,13 @@ def ureg(**defaults):
             raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
     c.add_transformation('[length] * [scalefactori] / [hubbli]', '[length]',f_1)
     c.add_transformation('[length]','[length] * [scalefactori] / [hubbli]', f_2)
+    c.add_transformation('[mass]  / [hubbli]', '[mass]',g_1)
+
+ 
     u.add_context(c)
-    if(len(defaults)>0):
-        u.enable_contexts(c,**defaults)
+    #if(len(defaults)>0):
+    #    u.enable_contexts(c,**defaults)
+    u.enable_contexts(c,hubble=.704)
 
     return u
 

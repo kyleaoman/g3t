@@ -35,8 +35,12 @@ def flat_props(props,n, cols=None):
         for prop,oldprop in i:
             if len(props[prop].shape)>1:
                 del  props[prop]
+                #print(prop, cols)
                 for i_in_prop in range(oldprop.shape[1]):
+                    #print(i_in_prop)
                     if cols is not None and prop+str(i_in_prop) in cols:
+                        props[prop+str(i_in_prop)]=oldprop[:,i_in_prop]
+                    elif cols is None: 
                         props[prop+str(i_in_prop)]=oldprop[:,i_in_prop]
         lprops = dtl(props,n,cols)
         return lprops
@@ -63,6 +67,7 @@ def main():
 
     parser.add_argument('--add-fof', type=str2bool, default=True)
 
+
     parser.add_argument('--add-sf-bounds', type=str2bool, default=False)
 
     parser.add_argument('--add-sf-data', type=str2bool, default=False)
@@ -73,13 +78,12 @@ def main():
     parser.add_argument('--only-fof-existing-columns', action='store_true', default=False)
 
     parser.add_argument('--format', type=str, default="%e")
-    parser.add_argument('--first-file', type=int, default=0)
     parser.add_argument('--delete-groups', help="delete all fofs of the snap before inserting. If false, tries to edit them", type=bool, default=False)
     args = parser.parse_args()
     for k in args.__dict__:
         print(k,args.__dict__[k])
 
-    
+    args.first_file = 0
     basegroup = args.basename+'groups_%s/sub_%s.'%(args.snap,args.snap)
     first_filename = basegroup+'0'
     first_file = g.GadgetFile(first_filename, is_snap=False)
@@ -115,13 +119,15 @@ def main():
     elif args.add_fof and not args.delete_groups:
         test_fof = FoF.select().where((FoF.snap==snap) & (FoF.resolvness==1)).first()
         if test_fof!=None:
-            raise Exception("Clusters for this simulation and snapshot  already present in the databse :(")
-    print(args.add_fof, args.delete_groups, args.add_fof and not args.delete_groups)
+                raise Exception("Clusters for this simulation and snapshot  already present in the databse :(")
+
+    #print(args.add_fof, args.delete_groups, args.add_fof and not args.delete_groups)
 
     if args.delete_groups:
         fofs = snap.fofs
-        Galaxy.delete().where(Galaxy.fof == fofs). execute()
+        Galaxy.delete().where(Galaxy.snap == snap). execute()
         FoF.delete().where(FoF.snap==snap).execute()
+        FoFFile.delete().where(FoFFile.snap==snap).execute()
 
     max_fof_id = None
     if args.add_sf_bounds or args.add_sf_data:
@@ -139,14 +145,14 @@ def main():
     if args.only_fof_existing_columns:
         fof_cols = [f for f in Galaxy.__dict__ if f[0]!='_' and f!='DoesNotExist']
         printf("FoF columns: %s\n"%( ' '.join(fof_cols)),e=True)
-
+        
 
     ifof = 0
     previous_info = None
     for ifile in range(args.first_file,nfiles):
         filename = basegroup+str(ifile)
         f = g.GadgetFile(filename, is_snap=False)
-        FoFFile.insert(snap=snap,id_first_cluster=ifof,ifile=ifile).execute()
+        FoFFile.get_or_create(snap=snap,id_first_cluster=ifof,ifile=ifile)#FoFFile.insert(snap=snap,id_first_cluster=ifof,ifile=ifile).execute()
         if f.info is None: 
             f.info = previous_info
         else:
@@ -160,6 +166,7 @@ def main():
         if args.add_fof: #insert FOFs
             props={}
             for FOF_block in FOF_blocks :
+
                 props[FOF_block.lower().replace(" ", "")] = f.read_new(FOF_block,0)
             props["id_cluster"] = np.arange(n_fof_groups)+ifof
             props["i_file"] = np.zeros(n_fof_groups)+ifile
@@ -169,7 +176,7 @@ def main():
             props["start_subfind_file"] = np.zeros(n_fof_groups)-1
             props["end_subfind_file"] = np.zeros(n_fof_groups)-1
             props["resolvness"] = np.zeros(n_fof_groups)+1
-
+            
             lprops  = flat_props(props, n_fof_groups, fof_cols)
             #print (props,lprops)
             printf("Clusters: len=%d N=%d from %d to %d\n"%(len(lprops), n_fof_groups,ifof, ifof+n_fof_groups))
@@ -182,6 +189,8 @@ def main():
                 n_insert_per_chunk=15
                 for idx in range(0, len(lprops)+ n_insert_per_chunk, n_insert_per_chunk):
                     chunk = lprops[idx:idx + n_insert_per_chunk]
+                    #print(chunk)
+
                     if len(chunk)>0:
                         FoF.insert_many(chunk).execute()
                     n_inserts+=len(chunk)

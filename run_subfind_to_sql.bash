@@ -13,7 +13,7 @@ sqlite3 $DB '.index' || true
 
 echo NAME=$NAME LIM=$LIM   TAG=$TAG SNAP=$SNAP 
 
-python subfind_to_sql.py  --basename $NAME/  --snap $SNAP --simulation-name $NAME --tag $TAG --min-val $LIM --add-fof 1
+python subfind_to_sql.py  --basename $NAME/  --snap $SNAP --simulation-name $NAME --tag $TAG --min-val $LIM --add-fof 1 --delete-groups 1
 
 
 SNAP_ID=$(sqlite3 $DB "
@@ -31,10 +31,10 @@ where fof.snap_id='$SNAP_ID' AND  mcri<(
     where  fof.snap_id='$SNAP_ID' AND glen<(
         select MIN(GLEN) from fof  
         where fof.snap_id='$SNAP_ID'
-    )*1.1
+    )*1.05
 )
 "
 
 python subfind_to_sql.py  --basename $NAME  --snap $SNAP --simulation-name $NAME --tag $TAG  --add-fof 0 --add-sf-bounds 1
 
-python subfind_to_sql.py  --basename $NAME  --snap $SNAP --simulation-name $NAME --tag $TAG  --add-fof 0 --add-sf-bounds 0 --add-sf-data  1 --only-subfind-existing-columns
+#python subfind_to_sql.py  --basename $NAME  --snap $SNAP --simulation-name $NAME --tag $TAG  --add-fof 0 --add-sf-bounds 0 --add-sf-data  1 --only-subfind-existing-columns

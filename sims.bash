@@ -5,6 +5,11 @@ function db_1e5_22j(){
     export LIM=1e4
 }
 
+function db_1e4_ago(){
+    export DB=/tmp/antonio/magneticum.sql.1e4.to
+    export LIM=1e4
+}
+
 function onc2pap(){
     export PYTHON=python3
     export INTRO="module load python/3.5_intel" #module load python/3.5_anaconda_nompi"
@@ -32,7 +37,6 @@ function ondorc1(){
 
 function Box0mr_bao(){
     onc2pap
-    export LIM=3e4
     export NAME=/HydroSims/Magneticum/Box0/mr_bao/
     export BOXNAME="Box0mr"
     export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao
@@ -77,7 +81,7 @@ function Box0mr_dm(){
     export PROPFLAGS=--dm
     export DB=./tmp/magneticum.sql
 
-    export LIM=3e4
+
     export NAME=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_dm/
     export BOXNAME="Box0dm"
     export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_dm

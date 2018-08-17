@@ -123,6 +123,7 @@ class ObservativeTable(object):
         headers=[]
         for _head in _headers:
             _head = _head.strip()
+            #print(_head)
             if _head[0]=='#':
                 _head = _head[1:]
             if len(_head)==0:
@@ -526,7 +527,8 @@ def find_notebook(fullname, path=None):
         nb_path = nb_path.replace("_", " ")
         if os.path.isfile(nb_path):
             return nb_path
-
+import traceback
+import sys
 
 class NotebookLoader(object):
     """Module Loader for Jupyter Notebooks"""
@@ -558,15 +560,23 @@ class NotebookLoader(object):
         save_user_ns = self.shell.user_ns
         self.shell.user_ns = mod.__dict__
 
-        if True:#try:
+        try:
+            icell=-1
             for cell in nb.cells:
+                icell+=1
                 if cell.cell_type == 'code':
                     code = self.shell.input_transformer_manager.transform_cell(cell.source)
                     #print("code:",code)
                     #print(mod.__dict__)
                     exec(code, mod.__dict__)
-        #finally:
             self.shell.user_ns = save_user_ns
+        except Exception as err:
+            
+            
+            detail = err.args[0]
+            cl, exc, tb = sys.exc_info()
+            line_number = traceback.extract_tb(tb)[-1][1]
+            raise err.__class__("%s\nline:%d\n%s" % ( detail, line_number,code)) from None
         sys.modules[fullname] = mod
         return mod
 

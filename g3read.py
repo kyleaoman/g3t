@@ -101,9 +101,11 @@ def join_res(res, blocks,  join_ptypes, only_joined_ptypes, f=None):
                     res[-1][block] =np.concatenate(tuple(t))
                 else:
                     res[-1][block] = np.array([])
-
+            #for block in iterate(blocks):
+            #    for i in res:
+            #        print (block, i, res[i][block].shape)
             res[-1]['PTYPE']=np.concatenate(tuple(
-                [np.zeros(len(res[i][iterate(blocks)[0]]),dtype=np.int32)+i  for i in res if i!=-1]
+                [np.zeros(len(res[i][iterate(blocks)[0]]),dtype=np.int32)+i  for i in res if i!=-1   ]
             ))
             #print(res[-1])
         if only_joined_ptypes:
@@ -801,7 +803,7 @@ class GadgetFile(object):
            print(f_parts, p_start)
             
        #print(ptype, g_name,  f_parts, p_start, self.header.npart[ptype], self.header.mass[ptype])
-       if (g_name == "MASS" and 
+       if (g_name == "MASS" and self.info is not None and 
            "MASS" not in self.info and 
            p_start is None and 
            self.header.npart[ptype]>0 and 
@@ -1189,7 +1191,7 @@ def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center
 
                 o=okey[i]+f.get_start_part(block, ptype)
                 p=pkey[i]
-                x=f.read(block, ptype, p,p_start=o)
+                x=f.read(block, ptype, p,p_start=o, center=center)
                 res[ptype][block].append(x)
     for ptype in iterate(ptypes):
         for block in iterate(blocks):
@@ -1240,9 +1242,9 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
                     #print(i,j,k)
                     keylist.append(peano_hilbert_key(hkey, i,j,k, integer_pos=True))
         """
-        for i in range(ifr[0],ito[0]+1):
-            for j in range(ifr[1],ito[1]+1):
-                for k in range(ifr[2],ito[2]+1):
+        for i in range(ifr[0]-2,ito[0]+1):
+            for j in range(ifr[1]-2,ito[1]+1):
+                for k in range(ifr[2]-2,ito[2]+1):
                     keylist.append(peano_hilbert_key(hkey, i,j,k, integer_pos=True))
 
         #print("4", "has_super_index",  has_super_index, "has_keys", has_keys)

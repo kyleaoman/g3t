@@ -14,11 +14,7 @@ import multiprocessing
 import time
 import signal
 import functools
-
-def iw():
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-
+import csv
 
 def printf(s,e=False):
     fd=sys.stderr if e else sys.stdout
@@ -44,41 +40,42 @@ def cached_pp(shared, **kw):
 
 def main():
 
-
-    folder='Box0mr_bao_dm'
-
-
+    #"""	 
+    folder='Box0mr_bao_dm_011'
     initial_snap='011'
     final_snap='037'
-    id_cluster_end=10
-    id_cluster_start=2
+    id_cluster_start=21
+    id_cluster_end=40
     group_base1='/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao/groups_%s/sub_%s'
     group_base2='/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_dm/groups_%s/sub_%s'
     snap_base1='/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao/snapdir_%s/snap_%s'
     snap_base2='//smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_dm/snapdir_%s/snap_%s'
+    
+    #"""
     """
 
-
-    folder='Box2hr_bao_dm_2'
+    folder='Box2hr_bao_dm_044'
     initial_snap ='044'
-    #confy['final_snap']='140'
+    #folder='Box2hr_bao_dm_100'
+    #initial_snap ='100'
     final_snap ='140'
+    id_cluster_start=0
+    id_cluster_end=10
     group_base1='/smgpfs/work/pr83li/lu78qer5/Magneticum/Box2/hr_bao/groups_%s/sub_%s'
     snap_base1='/smgpfs/work/pr83li/lu78qer5/Magneticum/Box2/hr_bao/snapdir_%s/snap_%s'
 
     group_base2='/smgpfs/work/pr83li/lu78qer5/Magneticum/Box2/hr_dm/groups_%s/sub_%s'
     snap_base2='/smgpfs/work/pr83li/lu78qer5/Magneticum/Box2/hr_dm/snapdir_%s/snap_%s'
-
     """
-    matcha(group_base1, snap_base1, group_base2, snap_base2, initial_snap, final_snap, folder=folder, parallel=True, n_processes=16, id_cluster_end=id_cluster_end, also_dm=True, id_cluster_start=id_cluster_start, skip_bao=True)
+    matcha(group_base1, snap_base1, group_base2, snap_base2, initial_snap, final_snap, folder=folder, parallel=True, n_processes=8, id_cluster_end=id_cluster_end, also_dm=False, id_cluster_start=id_cluster_start, skip_bao=False)
 
 
-def find_object_in_other_snap(shared,  cluster_data,  groupbase, snapbase, nfiles=20, folder='.', outpath='', max_distance=2000., core_ids=None, check_ids=True, dm=False):
+def find_object_in_other_snap(shared,  cluster_data,  groupbase, snapbase, nfiles=20, folder='.', outpath='', max_distance=500., core_ids=None, check_ids=True, dm=False):
         icluster_match = -1
         for ifile_match  in range(0, nfiles):
             #fofpath_match = groupbase%(snap_match, snap_match)+'.'+str(ifile_match)
             fofpath_match = groupbase+'.'+str(ifile_match)
-            #printf("              fof file match: %s\n"%(fofpath_match))
+            printf("              fof file match: %s\n"%(fofpath_match))
             s_match = pp.fof_info(fofpath_match, is_snap=False)
             nclusters_in_match_file = s_match.header.npart[0]
             for icluster_file_match in range(nclusters_in_match_file):
@@ -104,11 +101,11 @@ def find_object_in_other_snap(shared,  cluster_data,  groupbase, snapbase, nfile
                 if distance < max_distance:
                     if  check_ids and  cluster_data_match.can_read():
                         fraction = cluster_data.fraction_cluster_match(cluster_data_match,core_ids1=core_ids)
-                        printf("              fraction(%d) = %f\n"%( cluster_data_match.cluster_id, fraction))
+                        printf("              fraction(%d) = %f (within %.1f<%.1f ) \n"%( cluster_data_match.cluster_id, fraction, distance, max_distance))
 
                 #print(distance, fraction)
                 
-                if (fraction is None and distance < max_distance) or (fraction is not None and fraction>0.2):
+                if (fraction is None and distance < max_distance) or (fraction is not None and fraction>0.02):
                     
                     if cluster_data_match.can_read():
                         
@@ -123,7 +120,7 @@ def find_object_in_other_snap(shared,  cluster_data,  groupbase, snapbase, nfile
                         #printf("                  spinparameter = %s\n"%         cluster_data_match.spinparameter().Lambda_all)
                         if check_ids:
                             printf("                  fraction = %.2f\n"%fraction)
-                        printf("                  distance = %.2f\n"%distance)
+                        printf("                  distance = %.1f < %.1f\n"%(distance,max_distance))
                     else:
                         printf("                  id = %d\n"% cluster_data_match.cluster_id)
                         printf("                  position in fof file = %d\n"%(cluster_data_match.cluster_i_file))
@@ -132,18 +129,29 @@ def find_object_in_other_snap(shared,  cluster_data,  groupbase, snapbase, nfile
                         printf("                  z = %.2e\n"% cluster_data_match.z())
                         printf("                  RHMS central = %s\n"% str(cluster_data_match.rhms_central()))
                         printf("                  fossilness = %s\n"% str(cluster_data_match.fossilness()))
-                        printf("                  distance = %.2f\n"%distance)
+                        printf("                  distance = %.1f< %.1f\n"%(distance, max_distance))
 
 
                     return cluster_data_match
 
 
 
+def export_dict_list_to_csv(data, filename):
+    with open(filename, 'w') as f:
+        # Assuming that all dictionaries in the list have the same keys.
+        headers = sorted([k for k, v in data[0].items()])
+        csv_data = [headers]
 
-def follow_cluster(shared,  initial_snap, final_snap, icluster_file, icluster, ifile, groupbase,snapbase , nfiles=20, folder='.', outpath='', max_distance=2000., dm=False, n_files_after=20):
+        for d in data:
+            csv_data.append([d[h] for h in headers])
+
+        writer = csv.writer(f)
+        writer.writerows(csv_data)
+
+def follow_cluster(shared,  initial_snap, final_snap, icluster_file, icluster, ifile, groupbase,snapbase , nfiles=20, folder='.', outpath='', max_distance=500., dm=False, n_files_after=3,                                                            plot_from_a = None):
     initial_snap_int = int(initial_snap)
     final_snap_int = int(final_snap)
-
+    print("followah!", plot_from_a)
     cluster_data = cached_pp(shared,
                              cluster_id=icluster,
                              cluster_id_in_file=icluster_file,
@@ -177,8 +185,14 @@ def follow_cluster(shared,  initial_snap, final_snap, icluster_file, icluster, i
     printf("\n")
 
     bucket=[cluster_data]
+    step=1
 
-    for snap_int in range(initial_snap_int+1, final_snap_int+1):
+    if final_snap_int+1<initial_snap_int+1:
+        step=-1
+        
+
+    consecutive_non_find=0
+    for snap_int in range(initial_snap_int+step, final_snap_int+1,step):
         snap_match = "%03d"%(snap_int)
         printf("        snap match = %s\n"%(snap_match))
         cluster_data_match = find_object_in_other_snap(shared,
@@ -192,17 +206,30 @@ def follow_cluster(shared,  initial_snap, final_snap, icluster_file, icluster, i
                                                        core_ids=core_ids,
                                                        dm=dm)
         if cluster_data_match is not  None:
+            consecutive_non_find=0
             if cluster_data_match.can_read():
                 core_ids = cluster_data_match.core_ids()
                 cluster_data_match.pictures_ptypes()
             bucket.append(cluster_data_match)
             cluster_data = cluster_data_match
+        else:
+            consecutive_non_find+=1
+        if consecutive_non_find == 4: #too much effort for this cluster
+            break
 
     cluster_data = None
-            
+    display_bucket(bucket, plot_from_a=plot_from_a, outpath=outpath)
+    return bucket 
+
+def display_bucket(bucket, plot_from_a=None, outpath='', ptypes=False):
     for bro in bucket:
-        if bro is None:
-            continue
+        if ptypes and bro is not None:
+            if bro.can_read():
+                bro.pictures_ptypes()
+                #print('can read',bro.z())
+            else:
+                pass
+                #print('cant read',bro.z())
 
             
 
@@ -218,8 +245,11 @@ def follow_cluster(shared,  initial_snap, final_snap, icluster_file, icluster, i
     #properties["spin"]= [bro.spinparameter().Lambda_all if bro.can_read() else np.nan  for bro in bucket]
 
     sfs = np.array([1./(1.+bro.z()) for bro in bucket])
-    f, axarr = plt.subplots(len(properties), sharex=True, figsize=(12,30))
-    fs=30
+    f, axarr = plt.subplots(len(properties), sharex=True) #, figsize=(12,35))
+    #f.subplots_adjust(wspace=0)
+    #f.subplots_adjust(0,0,1,1,0,0)
+    #f.subplots_adjust(hspace=0)
+    #fs=60
     iprop=-1
     for property_name in properties:
         iprop+=1
@@ -227,22 +257,105 @@ def follow_cluster(shared,  initial_snap, final_snap, icluster_file, icluster, i
         ys = np.array(properties[property_name])
 
         maska = ~np.isnan(ys)
+        if plot_from_a is not None:
+            maska &= sfs>plot_from_a
+            
         #print (sfs)
         #print (ys)
         #print (maska)
         axarr[iprop].plot(sfs[maska],ys[maska], marker='x')
 
-        axarr[iprop].set_ylabel(property_name,fontsize=fs)
+        axarr[iprop].set_ylabel(property_name)#,fontsize=fs)
         axarr[iprop].set_yscale("log")
         #axarr[iprop].set_xscale("log")
-
 
         for iline in range(len(ys)):
             if ys[iline]>0.:
                 axarr[iprop].axvline(x=sfs[iline])
     axarr[len(properties)-1].set_xlim([0.,1.])
-    axarr[len(properties)-1].set_xlabel('1/1+z', fontsize=fs)
+    axarr[len(properties)-1].set_xlabel('1/1+z')#, fontsize=fs)
+
     f.savefig(outpath+'line')
+
+
+    #plt.rc('text', usetex=True)
+    #plt.rc('font', family='serif')
+
+    f, axarr = plt.subplots(5, sharex=True, figsize=(7,10))
+    #f.subplots_adjust(hspace=0)
+    #f.subplots_adjust(wspace=0)
+    #f.subplots_adjust(0,0,1,1,0,0)
+
+
+    fs=10
+    ys = np.array(properties["mcri"])*1e10 #/.704
+    maska = ~np.isnan(ys)
+    if plot_from_a is not None:
+        maska &= sfs>plot_from_a
+    axarr[0].plot(sfs[maska],ys[maska], marker='x')
+    axarr[0].set_yscale('log')
+    axarr[0].set_ylabel('M200c\n[Msun]',fontsize=fs)
+
+
+    ys = np.array(properties["M cent"])*1e10/.704
+    maska = ~np.isnan(ys)
+    if plot_from_a is not None:
+        maska &= sfs>plot_from_a
+    axarr[1].plot(sfs[maska],ys[maska], marker='x')
+    axarr[1].set_yscale('log')
+    axarr[1].set_ylabel('M* central\n[Msun]',fontsize=fs)
+
+    ys = np.array(properties["foss"])
+    maska = ~np.isnan(ys)
+    if plot_from_a is not None:
+        maska &= sfs>plot_from_a
+    axarr[2].plot(sfs[maska],ys[maska],marker='x')
+    axarr[2].set_yscale('log')
+    axarr[2].set_ylabel(r'fossilness',fontsize=fs)
+
+
+    rss = [bro.rcri()/bro.c200c().c if bro.can_read() else np.nan for bro in bucket]
+    rcris = [bro.rcri() if bro.can_read() else np.nan for bro in bucket]
+    ys1 = np.array(rss)/.704
+    ys2 = np.array(rcris)/.704
+    maska1 = ~np.isnan(ys1)
+    maska2 = ~np.isnan(ys2)
+    if plot_from_a is not None:
+        maska1 &= sfs>plot_from_a
+    if plot_from_a is not None:
+        maska2 &= sfs>plot_from_a
+    axarr[3].plot(sfs[maska1],ys1[maska2],marker='x',label='r200c')
+    axarr[3].plot(sfs[maska1],ys2[maska2],marker='x',label='rs')
+    axarr[3].set_yscale('log')
+    axarr[3].set_ylabel('radii\n[kpc*a/h]',fontsize=fs)
+    axarr[3].legend(fontsize=8)
+
+    
+    ys = np.array(properties["c200c"])
+    maska = ~np.isnan(ys)
+    if plot_from_a is not None:
+        maska &= sfs>plot_from_a
+
+    axarr[4].plot(sfs[maska],ys[maska],marker='x')
+    axarr[4].set_yscale('log')
+    axarr[4].set_ylabel(r'c200c',fontsize=fs)
+    axarr[4].set_xlim([0.,1.])
+    axarr[4].set_xlabel('a')#, fontsize=fs)
+
+
+
+
+    f.savefig(outpath+'paper',bbox_inches='tight')
+
+
+    properties["a"] = [1./(1.+bro.z()) for bro in bucket]
+    properties["z"] = [bro.z() for bro in bucket]
+    properties["id_cluster"] = [bro.cluster_id for bro in bucket]
+
+    list_propes  = [dict(zip(properties,t)) for t in zip(*properties.values())]
+
+    export_dict_list_to_csv(list_propes, outpath+'.csv')
+
 
 import traceback
 import sys
@@ -256,24 +369,32 @@ def ciao(*l,**kw):
         with open('st.log','a') as log:
             traceback.print_exc(file=log)
     
-def apply_async(pool, f,*l,**kw):
-    #print("running pool async!")
-    pool.apply_async(ciao,(f,)+ l, kw)    
+def apply_async(apool, f,*l,**kw):
+    if apool is not None:
+        print("running pool async!", apool)
+        apool.apply_async(ciao,(f,)+ l, kw)    
+    else:
+        print("running pool serial!")
 
-def matcha(group_base1, snap_base1, group_base2, snap_base2, initial_snap, final_snap,ifiles=10, id_cluster_start=0, id_cluster_end=20, folder='.', distance=2000., also_dm=True, skip_bao=False, parallel=True,n_processes=8, n_files_after=3):
+        return f(*l,**kw)
+
+def matcha(group_base1, snap_base1, group_base2, snap_base2, initial_snap, final_snap,ifiles=10, id_cluster_start=0, id_cluster_end=20, folder='.', distance=500., also_dm=True, skip_bao=False, parallel=True,n_processes=8, n_files_after=3,mypool=None, plot_from_a=None):
+    
+    print("MATCHA!", mypool, parallel, plot_from_a)
 
 
     shared = pp.O()
     shared._cache_pp = {}
     shared.pp_lock =  None #Lock()
 
-
+    pool = mypool
 
     initial_snap_int = int(initial_snap)
     final_snap_int = int(final_snap)
     if parallel:
         jobs=[]
-        pool = multiprocessing.Pool(n_processes,iw)
+    if parallel and pool == None :
+        pool = multiprocessing.Pool(n_processes)
 
 
     icluster = -1
@@ -291,20 +412,12 @@ def matcha(group_base1, snap_base1, group_base2, snap_base2, initial_snap, final
                 break
             outpath = '%s/%s_cheese_%d_%s_'%(folder,'bao',icluster,initial_snap)
             if not skip_bao:
-                if parallel:
-                    apply_async(pool, follow_cluster, shared,  initial_snap, final_snap, icluster_file, icluster, ifile,
-                           group_base1,
-                           snap_base1, nfiles=ifile+ifiles,
-                           outpath=outpath,
-                           max_distance=distance)
-                else:
-                    follow_cluster(shared,  initial_snap, final_snap, icluster_file, icluster, ifile,  
-                           group_base1, 
-                           snap_base1, 
-                           nfiles=ifile+ifiles, 
-                           outpath=outpath,
-                           max_distance=distance)
-
+                bucket = apply_async(pool, follow_cluster, shared,  initial_snap, final_snap, icluster_file, icluster, ifile,
+                            group_base1,
+                            snap_base1, nfiles=ifile+ifiles,
+                            outpath=outpath,
+                            max_distance=distance,
+                            plot_from_a = plot_from_a)
             if also_dm:
                 cluster_data = cached_pp(shared,
                                          cluster_id=icluster,
@@ -314,44 +427,33 @@ def matcha(group_base1, snap_base1, group_base2, snap_base2, initial_snap, final
                                          snap_base = snap_base1%(initial_snap, initial_snap),
                                          n_files=ifiles,
                                          subfind_and_fof_same_file=False,
-                                         output_path=outpath
-                             )
+                                         output_path=outpath)
                 cluster_data_dm= find_object_in_other_snap(shared,
-                    cluster_data,
-                    group_base2%(initial_snap, initial_snap),
-                    snap_base2%(initial_snap, initial_snap),
-                    nfiles=cluster_data.cluster_i_file+ifiles,
-                    folder=folder,
-                    outpath=outpath,
-                    max_distance=distance,
+                                                           cluster_data,
+                                                           group_base2%(initial_snap, initial_snap),
+                                                           snap_base2%(initial_snap, initial_snap),
+                                                           nfiles=cluster_data.cluster_i_file+ifiles,
+                                                           folder=folder,
+                                                           outpath=outpath,
+                                                           max_distance=distance,
                                                            check_ids=False,
-                                                           dm=True)
+                                                           dm=True
+                                                           )
                 if cluster_data_dm is None:
                     continue
-                if parallel:
-                    apply_async(pool, follow_cluster, 
-                                shared,  initial_snap, final_snap,
-                                cluster_data_dm.cluster_id_in_file, 
-                                cluster_data_dm.cluster_id,
-                                cluster_data_dm.cluster_i_file,
-                                group_base2, 
-                                snap_base2,
-                                nfiles=ifile+ifiles, 
-                                       outpath='%s/%s_cheese_%d_%s_'%(folder,'dm',icluster,initial_snap),
-                                       max_distance=distance,
-                                dm=True
-                                     )
-                else:
-                    follow_cluster(shared,  initial_snap, final_snap,
-                               cluster_data_dm.cluster_id_in_file, 
-                               cluster_data_dm.cluster_id,
-                               cluster_data_dm.cluster_i_file,
-                           group_base2, 
-                           snap_base2, 
-                           nfiles=ifile+ifiles, 
-                           outpath='%s/%s_cheese_%d_%s_'%(folder,'dm',icluster,initial_snap),
-                           max_distance=distance,
-                               dm=True)
+                
+                apply_async(pool, follow_cluster, 
+                            shared,  initial_snap, final_snap,
+                            cluster_data_dm.cluster_id_in_file, 
+                            cluster_data_dm.cluster_id,
+                            cluster_data_dm.cluster_i_file,
+                            group_base2, 
+                            snap_base2,
+                            nfiles=ifile+ifiles, 
+                            outpath='%s/%s_cheese_%d_%s_'%(folder,'dm',icluster,initial_snap),
+                            max_distance=distance,
+                            dm=True,
+                            plot_from_a = plot_from_a)
 
         else: #python magic, no idea
             continue
@@ -361,6 +463,7 @@ def matcha(group_base1, snap_base1, group_base2, snap_base2, initial_snap, final
         pool.close()
         pool.join()
     print("return...")
+    return bucket
 
 if __name__=='__main__':
     main()
