@@ -150,6 +150,28 @@ positions = data["POS "]
 ```
 
 
+Writing a blocks back to a (new) file
+-------------------------------------
+
+The class `g3read.GadgetFile` has a function `write_block` that will overwrite a block with a new provided array.
+
+In this example I recompute the gravitational potentail between particles and store it back in a pre-existing `"POT "` block.
+The pacakge `pp.py` contains a routine to compute the gravitational potential between particles of the snapshot.
+
+
+```python
+import g3read, pp 
+my_filename = "./test/snap_132"
+my_filename_output "./test/new_snap_132"
+
+f = g3read.GadgetFile(my_filename)
+positions = f.read_new("POS ",-1) #-1 means all particles
+masses = f.read_new("MASS",-1)
+potential = pp.gravitational_potential(masses, positions, center).potential
+
+f.write_block("POT ", -1, potential, filename=my_filename_output)
+
+```
 ## Reading from a large run (with super indexes)
 
 The signature of `g3read.read_particles_in_box` is almost the same of `read_new`.
@@ -176,27 +198,6 @@ y=f["POS "][:,1]
 mass =f["MASS"]
 ```
 
-### Writing a blocks back to a (new) file
-
-The class `g3read.GadgetFile` has a function `write_block` that will overwrite a block with a new provided array.
-
-In this example I recompute the gravitational potentail between particles and store it back in a pre-existing `"POT "` block.
-The pacakge `pp.py` contains a routine to compute the gravitational potential between particles of the snapshot.
-
-
-```python
-import g3read, pp 
-my_filename = "./test/snap_132"
-my_filename_output "./test/new_snap_132"
-
-f = g3read.GadgetFile(my_filename)
-positions = f.read_new("POS ",-1) #-1 means all particles
-masses = f.read_new("MASS",-1)
-potential = pp.gravitational_potential(masses, positions, center).potential
-
-f.write_block("POT ", -1, potential, filename=my_filename_output)
-
-```
 
 
 # Submit a batch of jobs to the c2pap web portal (http://c2papcosmosim.uc.lrz.de/)
