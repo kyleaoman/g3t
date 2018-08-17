@@ -175,7 +175,7 @@ f.write_block("POT ", -1, potential, filename=my_filename_output)
 ## Reading from a large run (with super indexes)
 
 The signature of `g3read.read_particles_in_box` is almost the same of `read_new`.
-As opposed to `read_new`, `g3read.read_particles_in_box` additionally needs the minimum radius of the super indexes reading.
+As opposed to `read_new`, `g3read.read_particles_in_box` additionally needs a minimum radius.
 
 In this example I first read the position and radius of a FoF object (from the fof files) and then I extract its properties with `read_particles_in_box`.
 
