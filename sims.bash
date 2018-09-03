@@ -6,11 +6,34 @@ function db_1e5_22j(){
 }
 
 function db_1e4_ago(){
-    export DB=/tmp/antonio/magneticum.sql.1e4.to
+    export DB=/tmp/antonio/magneticum.sql.1e4.all_boxes
     export LIM=1e4
 }
 
+function db_fullbox4(){
+    export DB=/tmp/antonio/magneticum.sql.box4
+    export LIM=0
+}
+
+
+function onc2pap_redirect(){
+    export PROPFLAGS=
+    export PYTHON=python3
+    export INTRO="module load python/3.5_intel" #module load python/3.5_intel" #module load python/3.5_anaconda_nompi"
+    export SSH_HOST='ragagnin@localhost'
+    export SBATCH="bash"
+    #export MPIRUN="mpirun -n 1 -ppn 1"
+    export MPIRUN=""
+    export TEMPLATE="/dev/null"
+    export SCRATCH=/tmp/antonio
+    export TOSQL=tmp/magneticum.sql
+    export BASEWORK=/home/moon/ragagnin/
+#smgpfs/work/pr83li/lu78qer5/Magneticum
+
+}
+
 function onc2pap(){
+    export PROPFLAGS=
     export PYTHON=python3
     export INTRO="module load python/3.5_intel" #module load python/3.5_anaconda_nompi"
     export SSH_HOST='di29bop2@c2paplogin.lrz.de'
@@ -20,10 +43,12 @@ function onc2pap(){
     export TEMPLATE="c2papjob.ll"
     export SCRATCH=/gpfs/work/pr86re/di29bop2
     export TOSQL=tmp/magneticum.sql
+    onc2pap_redirect
 }
 
 
 function ondorc1(){
+    export PROPFLAGS=
     export PYTHON=python3
     export INTRO="module load python/3.5_intel" #module load python/3.5_intel" #module load python/3.5_anaconda_nompi"
     export SSH_HOST='ragagnin@localhost'
@@ -39,7 +64,7 @@ function Box0mr_bao(){
     onc2pap
     export NAME=/HydroSims/Magneticum/Box0/mr_bao/
     export BOXNAME="Box0mr"
-    export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao
+    export BASE=$BASEWORK/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_bao
 }
 
 function Box0mr_bao_z0(){
@@ -82,9 +107,9 @@ function Box0mr_dm(){
     export DB=./tmp/magneticum.sql
 
 
-    export NAME=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_dm/
+    export NAME=$BASEWORK/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_dm/
     export BOXNAME="Box0dm"
-    export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_dm
+    export BASE=$BASEWORK/smgpfs/work/pr83li/lu78qer5/Magneticum/Box0/mr_dm
 }
 
 function Box0mr_dm_z0(){
@@ -123,7 +148,7 @@ function Box2bhr_bao(){
     onc2pap
     export NAME=/HydroSims/Magneticum/Box2b/hr_bao/
     export BOXNAME="Box2bhr"
-    export BASE=/smgpfs/work/pr83li/lu78qer5/Magneticum/Box2b/hr_new
+    export BASE=$BASEWORK/smgpfs/work/pr83li/lu78qer5/Magneticum/Box2b/hr_new
 
 }
 

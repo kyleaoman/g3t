@@ -23,8 +23,8 @@ class Snap(BaseModel):
     tag = TextField(null=True)
 
 class FoFFile(BaseModel):
-    class Meta:
-        primary_key = False
+    class Meta:   
+        primary_key = CompositeKey('snap', 'ifile')
     snap = ForeignKeyField(Snap, backref='foffiles')
     ifile = IntegerField()
     id_first_cluster = IntegerField()
@@ -56,6 +56,8 @@ class PP(BaseModel):
 
 
 class FoF(BaseModel):
+    class Meta:   
+        primary_key = CompositeKey('snap', 'id_cluster')
     i_file = IntegerField()
     id_cluster = IntegerField()
     i_in_file = IntegerField()

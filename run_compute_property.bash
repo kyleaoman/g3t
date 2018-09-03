@@ -1,37 +1,40 @@
 set -ev
 export PROP="c200c fossilness"
-export TARGET=2018_sept
+export TARGET=2018_sept_all_boxes_2
+. sims.bash
 
-. sims.bash; Box0mr_bao_z0; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-. sims.bash; Box2bhr_bao_z0; db_1e5_22j;MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-. sims.bash; Box4uhr_bao_z0; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
+db_1e4_ago
+export MEMO=$BOXNAME$TAG
 
-#. sims.bash; Box0mr_bao_z05; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box0mr_bao_z1; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box0mr_bao_z15; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box0mr_bao_z2; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
+#Box0mr_bao_z0;   ./ssh_launch_job.bash
+Box2bhr_bao_z0;  ./ssh_launch_job.bash
+Box4uhr_bao_z0;   ./ssh_launch_job.bash
 
-
-#. sims.bash; Box0mr_dm_z0; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box0mr_dm_z05; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box0mr_dm_z1; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box0mr_dm_z15; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box0mr_dm_z2; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
+#Box0mr_bao_z05;   ./ssh_launch_job.bash
+#Box0mr_bao_z1;   ./ssh_launch_job.bash
+#Box0mr_bao_z15;   ./ssh_launch_job.bash
+#Box0mr_bao_z2;   ./ssh_launch_job.bash
 
 
-
-#. sims.bash; Box2bhr_bao_z05; db_1e5_22j;MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box2bhr_bao_z1; db_1e5_22j;MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box2bhr_bao_z15; db_1e5_22j;MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box2bhr_bao_z2; db_1e5_22j;MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
+#Box0mr_dm_z05;   ./ssh_launch_job.bash
+#Box0mr_dm_z1;   ./ssh_launch_job.bash
+#Box0mr_dm_z15;   ./ssh_launch_job.bash
+#Box0mr_dm_z2;   ./ssh_launch_job.bash
 
 
 
+#Box2bhr_bao_z05;  ./ssh_launch_job.bash
+#Box2bhr_bao_z1;  ./ssh_launch_job.bash
+#Box2bhr_bao_z15;  ./ssh_launch_job.bash
+#Box2bhr_bao_z2;  ./ssh_launch_job.bash
 
-#. sims.bash; Box4uhr_bao_z05; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box4uhr_bao_z1; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box4uhr_bao_z15; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
-#. sims.bash; Box4uhr_bao_z2; db_1e5_22j; MEMO=$BOXNAME$TAG ./ssh_launch_job.bash
 
 
-#. sims.bash; Box0mr_bao_z0; bash ssh_copyback_properties.bash
+
+#Box4uhr_bao_z05;   ./ssh_launch_job.bash
+#Box4uhr_bao_z1;   ./ssh_launch_job.bash
+#Box4uhr_bao_z15;   ./ssh_launch_job.bash
+#Box4uhr_bao_z2; ./ssh_launch_job.bash
+
+
+

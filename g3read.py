@@ -90,7 +90,7 @@ def join_res(res, blocks,  join_ptypes, only_joined_ptypes, f=None):
                         t.append(res[i][block])
                     else:
                         if f is not None and f.info is not None:
-                            cols, dtype = f.get_data_shape(block,i)
+                            cols, dtype = f.get_data_shape(block)
                             shape = f.header.npart[i]
                             if cols>1:
                                 shape = (f.header.npart[i],cols)
@@ -353,7 +353,7 @@ class GadgetHeader(object):
 
 class GadgetFile(object):
 
-    def __init__(self, filename,is_snap=True):
+    def __init__(self, filename,is_snap=True,blocks=None, has_info=False):
         #print('#patched __init__',filename)
         if(debug):
             printf("g3.read: opening '%s'\n"%(filename), e=True)
@@ -376,6 +376,7 @@ class GadgetFile(object):
                     lambda x: str.encode(x, 'utf-8'), self.block_names)
             # This is a counter for the fallback
             self.extra = 0
+        self.loaded_block_names=[]
         while True:
             block = GadgetBlock()
 
@@ -384,6 +385,7 @@ class GadgetFile(object):
 
             if name == "    ":
                 break
+
             # Do special things for the HEAD block
             if name[0:4] == "HEAD":
                 if block.length != 256:
@@ -425,12 +427,9 @@ class GadgetFile(object):
                 block.ptypes = self.header.npart != 0
                 success = True
 
+
             block.start = fd.tell()
-            # Check for the case where the record size overflows an int.
-            # If this is true, we can't get record size from the length and we just have to guess
-            # At least the record sizes at either end should be consistently wrong.
-            # Better hope this only happens for blocks where all particles are
-            # present.
+
             extra_len = t_part * block.partlen
             if extra_len >= 2 ** 32:
                 fd.seek(extra_len, 1)
@@ -443,25 +442,7 @@ class GadgetFile(object):
             if extra_len >= 2 ** 32:
                 block.length = extra_len
 
-            if not success:
-                # Figure out what particles are here and what types
-                # they have. This also is a heuristic, which assumes
-                # that blocks are either fully present or not for a
-                # given particle. It also has to try all
-                # possibilities of dimensions of array and data type.
-                for dim, tp in (1, np.float32), (1, np.float64), (3, np.float32), (3, np.float64), (11, np.float32):
-                    try:
-                        block.data_type = tp
-                        block.partlen = np.dtype(tp).itemsize * dim
-                        block.ptypes = self.get_block_types(
-                            block, self.header.npart)
-                        success = True
-                        break
-                    except ValueError:
-                        continue
-            self.blocks[name[0:4]] = block
-
-            if not success and name=="INFO":
+            elif name=="INFO":
                 self.info = {}
                 il = 4+8+4*7
                 oldpos = fd.tell()
@@ -477,6 +458,38 @@ class GadgetFile(object):
                         print("block='%s' type='%s' size='%d' ptype=%d %d %d %d %d %d"%(s[0],s[1],s[2],s[3],s[4],s[5],s[6],s[7],s[8]))
                 fd.seek(oldpos)
                 success=True
+
+            if not success:
+                #printf(name)
+                if self.info!=None and name in self.info:
+                    self.blocks[name[0:4]] = block
+                    cols, block.data_type =  self.get_data_shape(name) #will assign partlen to the block
+                    block.ptypes = [self.info[name][3+i]==1 for i in [0,1,2,3,4,5]]
+                    #print(block.ptypes,block.partlen, block.data_type,' v ')
+                    success = True
+                elif self.info==None:
+                    # pynbody magic
+                    #print(' l ')
+                    
+                    for dim, tp in (1, np.float32), (1, np.float64), (3, np.float32), (3, np.float64), (11, np.float32):
+                        
+                            block.data_type = tp
+                            block.partlen = np.dtype(tp).itemsize * dim
+                            ret = self.get_block_types(
+                                block, self.header.npart)
+                            if ret==None:
+                                continue
+                            block.ptypes = ret
+                            success = True
+                            break
+            if success:
+                self.blocks[name[0:4]] = block
+                self.loaded_block_names.append(name[0:4])
+            else:
+                raise ValueError("Unable to read block", name)
+            if blocks and set(self.loaded_block_names).issuperset(blocks):
+                #print('brek!')
+                break
                 
             if not success:
                 pass
@@ -518,7 +531,7 @@ class GadgetFile(object):
                 if block.length == (npart[list(perm)]).astype(np.int64).sum() * block.partlen:
                     ptypes[list(perm)] = True
                     return ptypes
-        raise ValueError("Could not determine particle types for block")
+        return None
 
     def check_format(self, fd):
         """This function reads the first character of a file and, depending on its value, determines
@@ -736,13 +749,12 @@ class GadgetFile(object):
 
 
 
-    def get_data_shape(self, g_name, ptype):
+    def get_data_shape(self, g_name):
         try:
             if g_name=="INFO" or self.info is None or (g_name not in self.info and g_name in self.blocks):
                 dtype=np.float32
         except:
             print (g_name)
-            print (ptype)
             print (self.info)
             print(self.blocks)
         if g_name=="INFO" or self.info is None or (g_name not in self.info and g_name in self.blocks):
@@ -758,7 +770,6 @@ class GadgetFile(object):
         else:
            info = self.info
            if g_name not in self.info and g_name!="MASS":
-               #print(ptype, self.header.mass, self.header.mass[ptype])
                raise Exception("block not found %s"%g_name)
            elif g_name not in self.info:
                return 1,np.float32
@@ -790,7 +801,7 @@ class GadgetFile(object):
 
 
        g_name = block
-       cols,dtype = self.get_data_shape (g_name, ptype)
+       cols,dtype = self.get_data_shape (g_name)
        #print(g_name, cols, dtype)
        if p_toread is None: 
            if (debug):
@@ -1142,8 +1153,8 @@ def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center
     for ifile in ifiles:
       myname=mmyname+'.'+str(ifile)+'.key'
       mysnap=mmyname+'.'+str(ifile)
-      gkeyf=GadgetFile(myname,is_snap=False)
-      f=GadgetFile(mysnap, is_snap=False)
+      gkeyf=GadgetFile(myname,is_snap=False,blocks=["KEY ","OKEY","NKEY"])
+      f=GadgetFile(mysnap, is_snap=False,blocks=blocks)
       for ptype in iterate(ptypes):
         if ptype not in res:
             res[ptype]={}

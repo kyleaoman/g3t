@@ -466,9 +466,9 @@ def memo(maxsize=None):
     return decorator
 
 @memo(maxsize=_cache_size)
-def fof_info(filename, is_snap=False):
+def fof_info(filename, is_snap=False, blocks=None):
     #print("_fof info caching ",filename,is_snap)
-    return g.GadgetFile(filename, is_snap)
+    return g.GadgetFile(filename, is_snap,blocks=blocks)
 
 
 
@@ -486,20 +486,21 @@ class PostProcessing(object):
     n_files = 10
     has_keys = False
     fof_blocks = ['MCRI','GPOS','RCRI']
-    sf_blocks = ['SMST','SPOS','GRNR','RHMS']
-    snap_all_blocks = ['POS ','VEL ','MASS']#,'ID  ']
+    sf_blocks = ['SMST','SPOS','GRNR']
+    snap_all_blocks = ['POS ','MASS']#,'ID  ']
     snap_gas_blocks = ['U   ','TEMP']
     subfind_and_fof_same_file = False
     subfind_files_range = None
     random_subset_size = 2000
     myinfo=None
+    need_gas = False
     @memo()
     def fof_file(self,i_file):
         global fof_info
         filename = '%s.%d'%(self.group_base,i_file)
         #print("CALL from cache", filename)
         
-        f = fof_info(filename, is_snap=False)
+        f = fof_info(filename, is_snap=False, blocks = self.fof_blocks+self.sf_blocks)
 
         if f.info is not None and self.myinfo is None: 
             self.myinfo=f.info
@@ -524,13 +525,12 @@ class PostProcessing(object):
             last_file = self.subfind_files_range[1]
         elif self.subfind_and_fof_same_file:
             first_file = self.i_file-1
-            if first_file<0: first_file=0
             last_file = self.i_file+1
         else:
             first_file = 0
             last_file = self.n_files
-        #print('range', (first_file, last_file+1), range(first_file, last_file+1))
-        i1_file=first_file-1 #, last_file+1):
+        if first_file<0: first_file=0
+        i1_file=first_file-1 
         while True:
             i1_file+=1
             f=self.fof_file(i1_file)
@@ -648,7 +648,10 @@ class PostProcessing(object):
             blocks=self.snap_all_blocks
             ptypes=[1,2]
         else:
-            blocks=self.snap_all_blocks+self.snap_gas_blocks
+            if self.need_gas:
+                blocks=self.snap_all_blocks+self.snap_gas_blocks
+            else:
+                blocks=self.snap_all_blocks
             ptypes=[0,1,4,5]
         all_data = self.read_new_ptypes_blocks_radius(ptypes=ptypes, blocks=blocks,  radius=self.rcri(),join_ptypes=False, only_joined_ptypes=False)
         add_cut(all_data, self.gpos(), self.rcri())
@@ -798,57 +801,4 @@ class PostProcessing(object):
         return  virialness(self.fof()["GPOS"], self.rcri(), all_mass, all_pos, all_vel, all_potential, gas_mass, gas_pos, gas_vel, gas_u, gas_temp, H0=0.1, G=47003.1)
 
                 
-
-from pint import Context
-from pint import UnitRegistry
-
-ureg_singleton = O()
-ureg_singleton.ureg=None
-
-def ureg(**defaults):
-
-    if ureg_singleton.ureg is None:
-        u = ureg_singleton.ureg = UnitRegistry()
-    else:
-        return ureg_singleton.ureg
-    u.define('Msun = 1.99885e30kg')
-    u.define("hubble = [hubbli]")
-    u.define("scalefactor = [scalefactori]")
-    u.define('gmass = 1e10 Msun/hubble')
-    u.define('cmass = Msun/hubble')
-    u.define('clength = kpc/hubble*scalefactor')
-    u.define('glength = clength')
-    u.define('cvelocity = scalefactor*km/s')
-    u.define('gvelocity_a = (scalefactor**0.5)km/s')
-    u.define('gvelocity_noa = km/s')
-    c = Context('comoving',defaults={"hubble":None,"scalefactor":None})
-    def f_1(u,v,  hubble = None, scalefactor=None):
-        m=v.to(u.clength).magnitude
-        if hubble is not None and scalefactor is not None:
-            return u.kpc*m*scalefactor/hubble
-        else:
-            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
-    def g_1(u,v,  hubble = None ,scalefactor=None):
-        m=v.to(u.cmass).magnitude
-        if hubble is not None :
-            return u.Msun*m /hubble
-        else:
-            raise Exception("hubble=%s "%(str(hubble) ))
-    def f_2(u,v,  hubble = None, scalefactor=None):
-        m=v.to(u.kpc).magnitude
-        if hubble is not None and scalefactor is not None:
-            return u.clength/scalefactor*hubble
-        else:
-            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
-    c.add_transformation('[length] * [scalefactori] / [hubbli]', '[length]',f_1)
-    c.add_transformation('[length]','[length] * [scalefactori] / [hubbli]', f_2)
-    c.add_transformation('[mass]  / [hubbli]', '[mass]',g_1)
-
- 
-    u.add_context(c)
-    #if(len(defaults)>0):
-    #    u.enable_contexts(c,**defaults)
-    u.enable_contexts(c,hubble=.704)
-
-    return u
 

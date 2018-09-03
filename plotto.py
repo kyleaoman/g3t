@@ -13,7 +13,61 @@ from pint import UnitRegistry
     
 import pandas as pd
 import pp
-ureg = pp.ureg
+from pint import Context
+from pint import UnitRegistry
+
+class O(object):
+    def __init__(self, **kw):
+        for k in kw:
+            self.__dict__[k]=kw[k]
+    def __str__(self):
+        return str(self.__dict__)
+
+ureg_singleton = O()
+ureg_singleton.ureg=None
+
+def gen_ureg(**defaults):
+    if ureg_singleton.ureg is None:
+        u = ureg_singleton.ureg = UnitRegistry()
+    else:
+        return ureg_singleton.ureg
+    u.define('Msun = 1.99885e30kg')
+    u.define("hubble = [hubbli]")
+    u.define("scalefactor = [scalefactori]")
+    u.define('gmass = 1e10 Msun/hubble')
+    u.define('cmass = Msun/hubble')
+    u.define('clength = kpc/hubble*scalefactor')
+    u.define('glength = clength')
+    u.define('cvelocity = scalefactor*km/s')
+    u.define('gvelocity_a = (scalefactor**0.5)km/s')
+    u.define('gvelocity_noa = km/s')
+    c = Context('comoving',defaults={"hubble":None,"scalefactor":None})
+    def f_1(u,v,  hubble = None, scalefactor=None):
+        m=v.to(u.clength).magnitude
+        if hubble is not None and scalefactor is not None:
+            return u.kpc*m*scalefactor/hubble
+        else:
+            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
+    def g_1(u,v,  hubble = None ,scalefactor=None):
+        m=v.to(u.cmass).magnitude
+        if hubble is not None :
+            return u.Msun*m /hubble
+        else:
+            raise Exception("hubble=%s "%(str(hubble) ))
+    def f_2(u,v,  hubble = None, scalefactor=None):
+        m=v.to(u.kpc).magnitude
+        if hubble is not None and scalefactor is not None:
+            return u.clength/scalefactor*hubble
+        else:
+            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
+    c.add_transformation('[length] * [scalefactori] / [hubbli]', '[length]',f_1)
+    c.add_transformation('[length]','[length] * [scalefactori] / [hubbli]', f_2)
+    c.add_transformation('[mass]  / [hubbli]', '[mass]',g_1)
+    u.add_context(c)
+    u.enable_contexts(c,hubble=.704)
+    return u
+
+ureg = gen_ureg()
 
 
 class O(object):
@@ -81,12 +135,12 @@ class ObservativeTable(object):
         #print(self)
         self.glob = {}
         self.dollar=dollar
-        self.ureg = ureg()
+        self.ureg = ureg
         self._uid = _uid
         self.dot=dot
         self.underscore=underscore
         if uregistry is None:
-            self.ureg = ureg()
+            self.ureg = gen_ureg()
         else:
             self.ureg = uregistry
         if from_csv_reader:
@@ -663,8 +717,8 @@ class PintConverter(matplotlib.units.ConversionInterface):
 
 import pandas as pd
 # Register the class
-matplotlib.units.registry[SubclassedSeries] = PintConverter(ureg())
-matplotlib.units.registry[ureg().Quantity] = PintConverter(ureg())
+matplotlib.units.registry[SubclassedSeries] = PintConverter(ureg)
+matplotlib.units.registry[ureg.Quantity] = PintConverter(ureg)
 
 #munits.registry[pd.core.series.Series] = PintConverter(ureg())
 

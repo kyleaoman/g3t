@@ -14,7 +14,7 @@ ssh $SSH_HOST $INTRO '&&' cd $F '&&' pwd
 
 
 export CHUNKS=20
-export TASKS=4
+export TASKS=6
 
 function YO(){
     DA=$1
@@ -27,11 +27,12 @@ seq $DA $A |
 xargs -P$TASKS -n1 $MPIRUN $PYTHON composite_properties.py --basegroup $BASE/groups_$SNAP/sub_$SNAP --basesnap $BASE/snapdir_$SNAP/snap_$SNAP --simulation-name $NAME   --snap $SNAP  --chunks $CHUNKS  --prop $PROP --outfile $OUTPUT --restart $PROPFLAGS --chunk " 
 }
 
-ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 0 3 20)\""
-ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 4 7 20)\""
-ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 8 11 20)\""
-ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 12 15  20)\""
-ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 16 19  20)\""
+ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 0 5 $CHUNKS)\""
+ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 6 11 $CHUNKS)\""
+ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 11 19 $CHUNKS)\""
+#ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 15 19 $CHUNKS)\""
+#ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 18 15  20)\""
+#ssh $SSH_HOST $INTRO '&&' cd $F '&&' $PYTHON runjob.py -f $TEMPLATE -s $SBATCH -x "\"$(YO 16 19  20)\""
 
 #> logs/$OUTPUT_$(date '+%Y_%m_%d_%H_%M_%S')
 

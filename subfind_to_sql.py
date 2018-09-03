@@ -152,7 +152,9 @@ def main():
     for ifile in range(args.first_file,nfiles):
         filename = basegroup+str(ifile)
         f = g.GadgetFile(filename, is_snap=False)
-        FoFFile.get_or_create(snap=snap,id_first_cluster=ifof,ifile=ifile)#FoFFile.insert(snap=snap,id_first_cluster=ifof,ifile=ifile).execute()
+        foffile = FoFFile.select().where((FoFFile.snap==snap)&(FoFFile.ifile==ifile)).first()
+        if foffile is None:
+            FoFFile.insert(snap=snap,id_first_cluster=ifof,ifile=ifile).execute()
         if f.info is None: 
             f.info = previous_info
         else:
