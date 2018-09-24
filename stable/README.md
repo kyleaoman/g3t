@@ -1,4 +1,4 @@
-#  Python libraries to read large (Open)Gadget2-3 runs <br/> for info please ask Antonio Ragagnin 
+#  Python libraries to read large Gadget runs <br/> for info please ask Antonio Ragagnin 
 
 In this folder I collected some python tools to read and do post processing with Gadget files, to send batch jobs to the <a href="http://c2papcosmosim.uc.lrz.de/" rel="nofollow">c2pap web portal</a> and to convert gadget files to HDF5.
 
@@ -260,7 +260,4 @@ python gadget_to_hdf5.py infile outfile
 
 In case you need to map names diffrently from the default version, have a look at the source code of `gadget_to_hdf5.py` and edit your own mapping.
 
-```bash
-python c2pap_batch.py -f dataset.csv -s SMAC -p content="bolometric x-ray luminosity" IMG_SIZE=512 IMG_Z_SIZE=5000 PROJECT='along z, xy plane' r500factor=2.0 -u <YOUR USERNAME> --existing-jobs --cache-jobs cachefile.pickle
-````
 
