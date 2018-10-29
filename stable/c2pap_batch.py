@@ -346,7 +346,7 @@ def main():
     log ("")
  
     from argparse import RawTextHelpFormatter
-    parser = argparse.ArgumentParser(description='c2pap webportal job batches', formatter_class=RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(description='c2pap webportal job batches', formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-f', '--file', type=str,  help='"dataset.csv" returned by webportal', default='dataset.csv')
     parser.add_argument('-u', '--username', type=str,  help='If not used, the email will be read from standard input.', required=True)
     parser.add_argument('-x', '--password', type=str,  help='If not used, the password will be safely read from standard input.')
@@ -354,8 +354,8 @@ def main():
     parser.add_argument('-w', '--weak-ssl', action='store_true', help="Doesn't check SSL certificate.", default=True)
     parser.add_argument('-e', '--existing-jobs', action='store_true',  help="Search for jobs with same parameters. If found, download its data.", default=False)
     parser.add_argument('-s', '--service', choices=['SMAC','SimCut','PHOX','query'], help="Choose a service between SMAC, SimCut, PHOX. Check the lower/upper case.", required=True)
-    parser.add_argument('-t', '--time-sleep', help="How frequently check the status of the job in seconds.", default=60, type=int)
-    parser.add_argument('-a', '--auto-download', help="Download data after execution", default=True, type=bool)
+    parser.add_argument('-t', '--time-sleep', help="How frequently check the status of the job in seconds. Default=60", default=60, type=int)
+    parser.add_argument('-a', '--auto-download', help="Download data after execution, default=True", default=True, type=bool)
     parser.add_argument('-p', '--params', help="""Form parameters.
     SimCut:
     IMG_Z_SIZE
@@ -383,7 +383,13 @@ def main():
     limit
     """,  nargs='+', default=["IMG_Z_SIZE=200","r500factor=1.0"])
     parser.add_argument('-j', '--cache-jobs', help="Cache jobs values in file", default=None, type=str)# "jobs.cache", type=str)
-    parser.add_argument('-n', '--naming', help="Where to save data. Use interpolation with %%(variable name). Variable name can be  %%(jobid) or any parameter on https://c2papcosmosim.uc.lrz.de/jobs/%%(jobid)/show.", default="{simulation_name}/{SnapNum}/{cluster_id}/{application_name}/{jobid}", type=str)
+    parser.add_argument('-n', '--naming', help="""
+    Where to save data. Use interpolation with %%(variable name). 
+    Variable name can be  %%(jobid) or any parameter on https://c2papcosmosim.uc.lrz.de/jobs/%%(jobid)/show.
+
+    default: {simulation_name}/{SnapNum}/{cluster_id}/{application_name}/{jobid}
+    
+""", default="{simulation_name}/{SnapNum}/{cluster_id}/{application_name}/{jobid}", type=str)
 
     args = parser.parse_args()
 
