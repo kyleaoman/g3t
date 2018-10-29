@@ -40,6 +40,8 @@ def main():
     parser.add_argument('--simulation-name', type=str,help='name of simulation', required=True)
     parser.add_argument('--snap', type=str,help='snap___', required=True)
     parser.add_argument('--outfile', type=str,help='actually infiles', nargs='+', required=True)
+    parser.add_argument('--ignore', default=False,  action='store_true')
+    parser.add_argument('--update', default=False,  action='store_true')
     parser.add_argument('--map',type=str, nargs='+',default=[])
     parser.add_argument('--csv-columns',type=str, nargs='+',default=None)
 
@@ -118,7 +120,7 @@ CREATE UNIQUE INDEX {x}_i  ON {x} ("#id_Cluster");
 
         q_insert_raw = """
 
-        insert or ignore into pp(id, snap_id, id_cluster, {vs})    select {start_id_in_pp}+{x}."#id_cluster",{snap_id}, {x}."#id_cluster",{xks} from {x};
+        insert {or_ignore} into pp(snap_id, id_cluster, {vs})    select {snap_id}, {x}."#id_cluster",{xks} from {x};
         """
         printf(q_insert_raw, e=True)
         print(vs)
@@ -126,7 +128,8 @@ CREATE UNIQUE INDEX {x}_i  ON {x} ("#id_Cluster");
         if (len(vs)==0):
             continue
         q_insert = q_insert_raw.format(outfile=outfile, x='tmp',snap_id=snap.id, max_id_cluster=max_id_cluster, min_id_cluster = min_id_cluster, start_id_in_pp=start_id_in_pp,
-                                       vs=','.join(vs), xks=','.join(['tmp.%s'%v for v in ks])
+                                       vs=','.join(vs), xks=','.join(['tmp.%s'%v for v in ks]),
+                                       or_ignore= 'or ignore' if args.ignore else ''
         )
             
         printf(q_insert, e=True)
@@ -135,14 +138,15 @@ CREATE UNIQUE INDEX {x}_i  ON {x} ("#id_Cluster");
         estatus = child.returncode
         if(estatus!=0):
             raise Exception("squilite exited with nonzero exit status %d"%(estatus))
-        
-        for k in header:
-            if args.csv_columns is not None and k not in args.csv_columns:
-                continue
-            printf("csv key=%s -> %s\n"%(k,cv[k]))
 
+        if args.update:
+            for k in header:
+                if args.csv_columns is not None and k not in args.csv_columns:
+                    continue
+                printf("csv key=%s -> %s\n"%(k,cv[k]))
 
-            q_update = """
+                
+                q_update = """
         update pp  set  {v} = (
             select cast({x}.{k} as float) from {x}
             where cast({x}."#id_cluster" as  int)=pp.id_cluster
@@ -160,12 +164,12 @@ CREATE UNIQUE INDEX {x}_i  ON {x} ("#id_Cluster");
 
 
 
-            printf(q_update)
-            child = subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE, stderr=sys.stderr)
-            child.communicate(conv(q_update))
-            estatus = child.returncode
-            if(estatus!=0):
-                raise Exception("squilite exited with nonzero exit status %d"%(estatus))
+                printf(q_update)
+                child = subprocess.Popen(('sqlite3',os.environ.get('DB')), stdout=sys.stdout, stdin=subprocess.PIPE, stderr=sys.stderr)
+                child.communicate(conv(q_update))
+                estatus = child.returncode
+                if(estatus!=0):
+                    raise Exception("squilite exited with nonzero exit status %d"%(estatus))
         qdrop="""
 drop index  {x}_i;
 drop table {x};

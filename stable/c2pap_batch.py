@@ -14,7 +14,7 @@ import urllib
 
 
 BASE = "https://c2papcosmosim.uc.lrz.de" 
-__version__= "0.3beta"
+__version__= "1.0beta [29 october 2018]"
 __author__= "Antonio Ragagnin"
 globy = {}
 
@@ -128,6 +128,9 @@ def fill(br,f,v, debug=False, byval=False):
         br.form.find_control(f).readonly = False
         if br.form.find_control(f).type == 'select':
             br.form.find_control(f).value = [v]
+        elif    br.form.find_control(f).type == 'checkbox':
+            br.form.find_control(f).value = ['on'] if v[0] in ['t','T','y','Y','1','o'] else []
+            #print(br.form.find_control(f).checked)
         else:
             br.form.find_control(f).value = v
 
@@ -193,33 +196,15 @@ def compare(job, args, debug=True, service_data=None):
         print(project, job['PROJECT'], project == job['PROJECT'])
         print()
         return c
-    """
-    mode
-    instrument (-1 for generic)
-    instrument_a (only if generic)
-    instrument_fov (only if generic)
-    t_obs_input
-    img_z_size
-    simulate"""
+
     if args.service=="PHOX":
         c = True
-        c = c and (args.ps['content']==job['content'])
-        c = c and cmpf(args.ps['IMG_Z_SIZE'], job['IMG_Z_SIZE'], debug=debug)
-        project = None
-
-        if args.ps['PROJECT'].is_option_number:
-            project = str(service_data['PROJECT'][int(args.ps['PROJECT'])]['value'])
-        else:
-            for p in service_data['PROJECT']:
-                if p['name']==args.ps['PROJECT']:
-                    project = str(p['value'])
-                    break
-        if project is None:
-            raise Exception("Unable to find the value of PROJECT='%s'"%(args.ps['PROJECT']))
-
-        c = c and project == job['PROJECT']
-        c = c and cmpf( float(args.ps['r500factor'])/(1.+float(args.ps['redshift']))/(float(job['HUBBLE'])/100), float(job['IMG_XY_SIZE'])/ float(job['R_VIR'])/2., debug=debug)
-
+        mode_id = ['ICM only','AGN only','ICM+AGN'].index(args.ps['mode'])+1
+        c = c and (str(mode_id)==job['mode'])
+        c = c and cmpf(args.ps['img_z_size'], job['img_z_size'], debug=debug)
+        c = c and cmpf(args.ps['t_obs_input'], job['T_obs'], debug=debug)
+        c = c and str(args.ps['instrument'].split(' ')[0]==job['instrument'])
+        c = c and str(args.ps['simulate'][0]  in ['t','T','y','Y','1','o'] and job['simulate']=='1')
 
         return c
     else:
@@ -384,13 +369,13 @@ def main():
     r500factor
 
     PHOX:
-    mode
-    instrument (-1 for generic)
+    mode ['ICM only','AGN only','ICM+AGN'] 
+    instrument (-1 for generic) or 'eROSITA (A=1000 FoV=60)' ..
     instrument_a (only if generic)
     instrument_fov (only if generic)
-    t_obs_input
-    img_z_size
-    simulate
+    t_obs_input e.g. 1000
+    img_z_size e.g. 2000
+    simulate use '1' or '0'
 
     query:
     query

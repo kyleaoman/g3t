@@ -31,6 +31,8 @@ class FoFFile(BaseModel):
 
 
 class PP(BaseModel):
+    class Meta:   
+        primary_key = CompositeKey('snap', 'id_cluster')
     id_cluster = IntegerField()
     snap = ForeignKeyField(Snap, backref='pps')
 
@@ -202,6 +204,6 @@ class Galaxy(BaseModel):
     spin2 = FloatField(null=True)
     
     
-tables = [Simulation,Snap,FoF,FoFFile,Galaxy]
+tables = [Simulation,Snap,FoF,FoFFile,Galaxy, PP]
 
 db.create_tables(tables)
