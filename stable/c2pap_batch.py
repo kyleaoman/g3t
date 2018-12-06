@@ -1,3 +1,26 @@
+"""
+c2pap-web-portal batch jobs, by Antonio Ragagnin (ragagnin@lrz.de), 2018.
+
+many thanks to Leonard Bauer for his beta testing.
+
+Mini Documentation
+==================
+
+Once you have a list of clusters is your dataset.csv, you can run a batch of PHOX jobs via
+ 
+python c2pap_batch.py -u 'your@email' -f dataset.csv -s PHOX -p mode='ICM only'  instrument='eROSITA (A=1000 FoV=60)' t_obs_input=1000 img_z_size=200 simulate=1
+
+or to run SMAC:
+
+python c2pap_batch.py -f dataset.csv -u 'your@rmail'  -s SMAC -p content="bolometric x-ray luminosity" IMG_SIZE=512 IMG_Z_SIZE=5000 PROJECT='along y, xz plane' 
+
+To save computing time (and your time) it is possible to tell the script to recycle your pre-existing jobs with the same parameters (very useful when you run batch scripts that intersects results from old scripts). For this purpose, add the parameters -e -j <name_of_a_cache_file> e.g.
+ 
+python c2pap_batch.py -u 'your@email' -f dataset.csv -s PHOX -p mode='ICM only'  instrument='eROSITA (A=1000 FoV=60)' t_obs_input=1000 img_z_size=200 simulate=1 -e -j jobs_cache.pk
+ 
+The first time you execute it, it will take a lot of time because it will have to load all of your jobs. The next times it will be very fast (it will load them from the file job_cache.pk).
+
+"""
 import getpass
 import mechanize
 import argparse
@@ -14,21 +37,20 @@ import urllib
 
 
 BASE = "https://c2papcosmosim.uc.lrz.de" 
-__version__= "1.0beta [29 october 2018]"
+__version__= "1.0 [22 november 2018]"
 __author__= "Antonio Ragagnin"
 globy = {}
 
-
-
-            
         
 def find_between( s, first, last ):
+    "just return the first sub-string of `s` between string delimeters `first` and `last`"
     start = s.index( first ) + len( first )
     end = s.index( last, start )
     return s[start:end]
 
 
 def find_between_r( s, first, last ):
+    "as find_between, but return the last sub-string"
     start = s.rindex( first ) + len( first )
     end = s.rindex( last, start )
     return s[start:end]
@@ -36,6 +58,7 @@ def find_between_r( s, first, last ):
 
 
 def get_between_tags(res, tag, flags=None):
+    "given a HTML content in `res`, returns a list of string for each sub-string of `res` between the HTML tags <`tag`> and</`tag`> "
     len_tag = len(tag)
     if flags is None:
         return [res[x.start()+len_tag+2:x.end()-(len_tag+3)] for x in re.finditer('<%s>.*?</%s>'%(tag,tag),res)]
@@ -44,7 +67,9 @@ def get_between_tags(res, tag, flags=None):
 
 
 def get_jobs_ids(br):
+    "open the url with the job lists and parse the HTML to find all job ids"
     res = br.open(BASE+"/jobs").read()
+    #the job ids are inside a <code></code> HTML tag
     jobids = get_between_tags(res, 'code')
     no_error_jobids = []
     for jobid in jobids:
@@ -54,6 +79,7 @@ def get_jobs_ids(br):
 
 
 def login(br, username, password):
+    "login to the web portal"
     br.open(BASE+"/login")
     br.select_form(nr=0)
     br.form.find_control("email").value = username
@@ -64,6 +90,9 @@ def login(br, username, password):
 
 
 def get_job_param(res):
+    """`res` should contain the HTML of the web page of a job. 
+    The following function parses its table with the job parameter names and value
+    (e.g. instrument = eRosita) and returns it as a dictionary d[job_parameter]=job_value"""
     d={}
     trs= get_between_tags(res, 'tr', flags=re.DOTALL)
     for tr in trs:
@@ -87,6 +116,13 @@ def log(*s,**l):
 
 
 def download(br, naming, jobid, job):
+    """ Given the `jobid` and the dictionary of the job parameters `job` 
+    (`job` is a dictionary computed by `get_job_param`),
+    it connects to the FTP and download job results. 
+    The folder name is decided using the template string `naming`.
+    For instance if `naming` is taken by the command line parameter -n,
+    it will have a default value of
+    '{simulation_name}/{SnapNum}/{cluster_id}/{application_name}/{jobid}'  """
     data = dict(job)
     data["jobid"]=jobid
     name = naming.format(**data)
@@ -100,6 +136,7 @@ def download(br, naming, jobid, job):
     log("Written: %s"%name)
 
 def wait(br, jobid):
+    "given a `jobid`, this function check the list of jobs until `jobid` results as 'COMPLETED' "
     res = br.open(BASE+"/jobs").read()
     status=None
     while status!="COMPLETED":
@@ -114,6 +151,11 @@ def wait(br, jobid):
     return jobid
 
 def fill(br,f,v, debug=False, byval=False):
+    """very tricky and foggy function. 
+    Given a mechanize browser `br`, it tries to set the value `v` 
+    in the field <form> field named `f`.
+    There are several switches in this function because addigment 
+    is different wehn you set a input-text, a check-box, a combo-box and so on """
     if br.form.find_control(f).type == 'select' and byval==False:
         item_set = False
         for item in br.form.find_control(f).items:
@@ -134,11 +176,9 @@ def fill(br,f,v, debug=False, byval=False):
         else:
             br.form.find_control(f).value = v
 
-#def select_option(form, field_id, text):
-#    value = nil
-#    form.field_with(:id => field_id).options.each{|o| value = o if o.text == text }
- 
 def submit(br, cluster_id, args):
+    """given a `cluster_id`, it submit a job with the values of the form set in `args`
+    (e.g. args['content']='content="bolometric x-ray luminosity')."""
     log("Opening: %s"%BASE+"/map/%s"%(args.service.lower()))
     br.open(BASE+"/map/%s"%(args.service.lower()))
     br.select_form(nr=0)
@@ -146,8 +186,6 @@ def submit(br, cluster_id, args):
     for k in args.ps.keys():
         if k=='redshift': continue
         v=args.ps[k]
-        
-
         if v.is_option_number:
             fill(br, k, str(v), debug=True, byval=True)
         else:
@@ -158,6 +196,7 @@ def submit(br, cluster_id, args):
     return  find_between(res, "ID <a href='/jobs/",'/')
 
 def cmpf(a,b,precision=0, debug=False):
+    "compare two floats within a precision. I use it to check if two jobs have the same parameters."
     s='%%.%df'%(precision)
     if debug:
         pass
@@ -165,6 +204,11 @@ def cmpf(a,b,precision=0, debug=False):
     return  s%float(a) == s%float(b)
 
 def compare(job, args, debug=True, service_data=None):
+    """check if the job parameters that were set as input to this program match
+    the job-parameter of an already exiting job `job`. As you can imagine 
+    this function is very delicate as for instance the user send a job with
+    comoving distances, but its job-parameter  is further stored in physical units.
+    So there are several conversions.   """
     if args.service=="SimCut":
         
         r500factor1 = args.ps['r500factor']
@@ -191,10 +235,6 @@ def compare(job, args, debug=True, service_data=None):
             
         c = c and project == job['PROJECT']
         c = c and cmpf( float(args.ps['r500factor'])/(1.+float(args.ps['redshift']))/(float(job['HUBBLE'])/100), float(job['IMG_XY_SIZE'])/ float(job['R_VIR'])/2., debug=debug)
-        print(args.ps['content'], job['content'], args.ps['content']==job['content'], c)
-        print(args.ps['IMG_Z_SIZE'], job['IMG_Z_SIZE'], cmpf(args.ps['IMG_Z_SIZE'], job['IMG_Z_SIZE'], debug=False))
-        print(project, job['PROJECT'], project == job['PROJECT'])
-        print()
         return c
 
     if args.service=="PHOX":
@@ -213,19 +253,23 @@ def compare(job, args, debug=True, service_data=None):
 
 
 def save_cache(cache_jobs, cache):
+    "save all jobs data in a cache file, so next time we load it faster"
+    #we disable the CTRL+C signal while saving, we do not want a corrupted file
     s = signal.signal(signal.SIGINT, signal.SIG_IGN)
     with open( cache_jobs, "wb" )  as f:
         pickle.dump( cache, f )
-
+    #re-enable CTRL+C
     signal.signal(signal.SIGINT, s)
 
 
 def query(br, query, page, limit):
+    "personal use"
     j = br.open(BASE+"/query/raw?"+urllib.urlencode((('q',query),('p',page),('l',limit)))).read()
     o = json.loads(j)
     return o
 
 def get_cache(cache_jobs):
+    "load file from cache if exists, otherwise create one." 
     try:
         print("open %s"%(cache_jobs))
         with open( cache_jobs, "rb" )  as f:
@@ -244,6 +288,8 @@ def get_cache(cache_jobs):
 
 gcache={"x":{}}
 def  get_job_or_cache(br, jobid, cache_jobs):
+    """given a job with `jobid`, either load it from a cahce file or,
+    if not there, load it from the web. Then the job is saved in the cache"""
     if cache_jobs is None:
         log("Loading: %s"%(jobid))
         res = br.open(BASE+"/jobs/%s/show"%(jobid)).read()
@@ -265,26 +311,18 @@ def  get_job_or_cache(br, jobid, cache_jobs):
         save_cache(cache_jobs, cache)
     return jobs[jobid]
 
-"""
-content_choices = ["baryonic density","mass weighted temperature","bolometric x-ray luminosity","bolometric x-ray luminosity","thermal SZ effect","kinetic SZ effect"]
-project_choices = ["z","y","x","xyz"]
-def choices_to_index(args):
-    if args.r500factor:
-        args.r500factor = [1.0, 1.5, 2.0].index(args.r500factor)+1
-    if args.content:
-        args.r500factor = content_choices.index(args.content)+1
-    if args.project:
-        args.project = content_choices.index(args.content)+1
-    return True
-"""
-
 class Parameter(str):
+    "store job parameters"
     def __new__(cls, value, *args, **kwargs):
         return super(Parameter, cls).__new__(cls, value)
     def __init__(self, value, is_option_number=False):
         self.is_option_number=is_option_number
 
 def get_sims_and_snaps(br, snap_id):
+    """given the snap_id inside dataset.csv, we parse the web-portal HTML
+    in order to find which simulation we are using.
+    Then, the browser select the simulation and the snap, so the jobs
+    are executed there."""
     res = br.open(BASE+'/map/find').read()
     j = json.loads(find_between(res, "myApp.constant('angulardata',", ")\n"))
     simulations = j["simulations"]
@@ -316,6 +354,10 @@ def get_sims_and_snaps(br, snap_id):
     raise Exception("Unable to set simulation/snap")
 
 class MyBrowser(mechanize.Browser):
+    """Extend mechanize browser to keep retrying when we get a 502 error.
+    I do this because the web portal sometimes give a 502 error and if
+    if happens while you are processing thousand of jobs, it is annoying
+    to wake up in the morning and discover that the code crashed because of a 502 error."""
     def __new__(cls, value, *args, **kwargs):
         return super(MyBrowser, cls).__new__(cls, value)
     def open(br, page):
@@ -412,11 +454,6 @@ def main():
             printf("Error evaluating %s\n"%(p),err=True)
             sys.exit(1)
 
-
-
-
-        
-
     if args.weak_ssl:
         import ssl
         ssl._create_default_https_context = ssl._create_unverified_context
@@ -448,7 +485,7 @@ def main():
     if args.password == None:
         args.password = getpass.getpass('password: ') #safely ask for password if not enterd via command line.
     login(br, args.username, args.password)
-    args.password = "" #after login, we the remove password from memory
+    args.password = "" #after login, we  remove password from memory
     del args.password
 
     
