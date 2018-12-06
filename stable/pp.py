@@ -89,8 +89,11 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1., solmas = 1.9
     x0=[0.05,0.5]
     method='L-BFGS-B'
     xbnd=[[0.001,50.0],[0.01,10.0]]
-    res=scipy.optimize.minimize(minimize_me,x0,method=method,bounds=   xbnd)
-    return res
+    r=scipy.optimize.minimize(minimize_me,x0,method=method,bounds=   xbnd)
+    return {
+        "rho0":r.x[0], 
+        "c":1./r.x[1]
+    }
 
 
 
@@ -665,19 +668,20 @@ class PostProcessing(object):
                                     only_joined_ptypes=only_joined_ptypes)
 
     @memo()
-    def c200c(self):
+    def c200c(self, all_ptypes=False):
         #print("dm?", self.dm)
         fof_pos = self.gpos()
         fof_r = self.fof()['RCRI']
-        dm_data = self.read_new()[1]
-
-        dm_mass_data=dm_data['MASS']
-        dm_pos_data=dm_data['POS ']
-        r=nfw_fit(dm_mass_data,dm_pos_data,fof_pos,fof_r)
-        if r is not None:
-            return O(**{"rho0":r.x[0],"c":1./r.x[1],"rs":r.x[1]*fof_r})
+        if all_ptypes:
+            data = self.read_new()[-1]
         else:
-            return O(rho0=np.nan, c=np.nan, rs=np.nan)
+            data = self.read_new()[1]
+
+        mass_data=data['MASS']
+        pos_data=data['POS ']
+        r = O(**nfw_fit(mass_data,pos_data,fof_pos,fof_r))
+        r.rs = fof_r/r.c
+        return r
     @memo()
     def spherical(self,ptype):
         #print (ptype, self.read_new()[ptype]['POS '])
