@@ -31,12 +31,13 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1., solmas = 1.9
     oldR=R
     R=oldRFactor*R
     maskd=d<R
-    m=m[maskd]
-    p=p[maskd]
-    d=d[maskd]
-    nbins=150
+    m=m[maskd] #masses within R
+    p=p[maskd] #positions within R
+    d=d[maskd] #distances within R
+
+    nbins=150 #bins of density profile
     ii=np.argsort(d)
-    the_num=42*math.pi #rlly?
+    the_num=42*math.pi #?
     anz=len(d)
     if anz==0:
         return None
@@ -53,6 +54,7 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1., solmas = 1.9
     rs1=np.zeros(nn)
     rs2=np.zeros(nn)
     nftab=np.zeros(nn)
+    # create density profile
     for ir in range(0,nn):
         if ir == 0:
             Vol1=0.0
@@ -74,6 +76,8 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1., solmas = 1.9
     R=oldR
     #f= solmas*hbpar/(kparsck**3*hbpar**-3)
 
+
+    #fit density profile
     r=rftab
     rho=rhoftab
     rho=rho*1e10

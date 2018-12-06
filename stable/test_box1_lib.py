@@ -19,9 +19,12 @@ def printf(s,e=False):
 
 snapbase = '/HydroSims/Magneticum/Box1a/mr_bao/snapdir_144/snap_144'
 groupbase = '/HydroSims/Magneticum/Box1a/mr_bao/groups_144/sub_144'
-from_icluster = 0
+from_icluster = 0 #id of first cluster to analyse
+to_icluster = 11494 #id of last cluster to analyse
 
 """ BEGIN """
+
+printf("#cluster_id mcri[Msun] rcri[kpc] c200c_dm c200c_all\n")
 
 nfiles=100
 icluster = -1
@@ -41,23 +44,11 @@ for ifile  in range(nfiles):
             snap_base = snapbase,
             n_files=nfiles,
             subfind_and_fof_same_file=False,
-            output_path='tmp/cheese_%d'%(icluster)
             
         )
-
-        printf(" - id: %d\n"% cluster_data.cluster_id)
-        printf("   fof path: %s\n"%(groupbase))
-        #printf("   position_in_fof_file: %d\n"%(icluster_file))
-        #printf("   n satellites = %d\n"%(len(cluster_data.satellites()['SPOS'])))
-        #print(cluster_data.satellites())
-        printf("   mcri: %e\n"% cluster_data.mcri())
-        printf("   rcri: %f\n"% cluster_data.rcri())
-        #printf("   z: %.2e\n"% cluster_data.z())
-        #printf(" fossilness = %s\n"% str(cluster_data.fossilness()))
-        #printf(" virialness = %s\n"% str(cluster_data.virialness()))
-        printf("   c200c_dm: %s\n"% str(cluster_data.c200c()))
-        printf("   c200c_all: %s\n"% str(cluster_data.c200c(all_ptypes=True)))
-        #         printf(" pictures = %s\n"%         cluster_data.pictures())
-        #printf(" spinparameter = %s\n"%         cluster_data.spinparameter())
-
-        printf("\n")
+        cluster_id = cluster_data.cluster_id
+        mcri = cluster_data.mcri()*1e10/.72
+        rcri = cluster_data.rcri()/.72
+        c200c_dm = cluster_data.c200c().c
+        c200c_all = cluster_data.c200c(all_ptypes=True).c
+        printf("%d %.3e %.3f %.3f %.3f \n"%(cluster_id, mcri, rcri, c200c_dm, c200c_all))
