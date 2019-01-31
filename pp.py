@@ -31,12 +31,13 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1., solmas = 1.9
     oldR=R
     R=oldRFactor*R
     maskd=d<R
-    m=m[maskd]
-    p=p[maskd]
-    d=d[maskd]
-    nbins=150
+    m=m[maskd] #masses within R
+    p=p[maskd] #positions within R
+    d=d[maskd] #distances within R
+
+    nbins=150 #bins of density profile
     ii=np.argsort(d)
-    the_num=42*math.pi #rlly?
+    the_num=42*math.pi #?
     anz=len(d)
     if anz==0:
         return None
@@ -53,6 +54,7 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1., solmas = 1.9
     rs1=np.zeros(nn)
     rs2=np.zeros(nn)
     nftab=np.zeros(nn)
+    # create density profile
     for ir in range(0,nn):
         if ir == 0:
             Vol1=0.0
@@ -74,6 +76,8 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1., solmas = 1.9
     R=oldR
     #f= solmas*hbpar/(kparsck**3*hbpar**-3)
 
+
+    #fit density profile
     r=rftab
     rho=rhoftab
     rho=rho*1e10
@@ -89,8 +93,48 @@ def nfw_fit(mass,pos,center,R,hbpar=0.72, plot=None, oldRFactor=1., solmas = 1.9
     x0=[0.05,0.5]
     method='L-BFGS-B'
     xbnd=[[0.001,50.0],[0.01,10.0]]
-    res=scipy.optimize.minimize(minimize_me,x0,method=method,bounds=   xbnd)
-    return res
+    r=scipy.optimize.minimize(minimize_me,x0,method=method,bounds=   xbnd)
+    return {
+        "rho0":r.x[0], 
+        "c":1./r.x[1]
+    }
+
+
+
+def nfw_fit_fast_cu(mass,rs,center,R,nbins=50):
+    import scipy
+    import scipy.optimize
+
+    r_bins = np.logspace(np.log10(R/nbins),np.log10(R), nbins)
+    mass_m,mass_bin = np.histogram(rs, bins=r_bins, weights=mass)
+    r_r,r_bin = np.histogram(rs, bins=r_bins, weights=rs)
+    r_n,r_bin = np.histogram(rs, bins=r_bins)
+    r_avg = r_r/r_n
+    rho_my = mass_m/(4.*np.pi*(r_bin[1:]**3-r_bin[:-1]**3)/3.)
+
+    distance_cu_to_comcgs = 3.086e21
+    mass_cu_to_comcgs = 1.99e33*1.e10
+    distance3_cu_to_comcgs = distance_cu_to_comcgs**3
+    density_cu_to_comcgs = mass_cu_to_comcgs/distance3_cu_to_comcgs
+    myprofilo_nfw=lambda r,rho0,rs: rho0 / ( (r/rs) * ((1.+r/rs)**2.))
+    print(rho_my*density_cu_to_comcgs*1e24, r_avg/R)
+    minimize_me = lambda x: np.sqrt(
+
+        np.sum(
+            np.abs(
+                np.log10(myprofilo_nfw(r_avg/R,x[0],x[1])/(rho_my*1e24*density_cu_to_comcgs))
+                )**2
+            ))
+
+
+    x0=[0.05,0.5]
+    method='L-BFGS-B'
+    xbnd=[[0.001,50.0],[0.01,10.0]]
+    r=scipy.optimize.minimize(minimize_me,x0,method=method,bounds=   xbnd)
+    return {
+        "rho0":r.x[0]/(1e24*density_cu_to_comcgs),
+        "c":1./r.x[1]
+    }
 
 
 
@@ -187,7 +231,7 @@ def fix_v(data,gpos,d=60.,H0=0.1):
 
 
 
-def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass, gas_pos, gas_vel, gas_u, gas_temp, H0=0.1, G=47003.1, cut=None, velcut=20.):
+def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass, gas_pos, gas_vel, gas_u, gas_temp, H0=0.1, G=43007.1, cut=None, velcut=20.):
 
     gas =False  if (gas_mass is None or gas_vel is None or gas_pos is None) else True
 
@@ -261,13 +305,13 @@ def virialness(center, rcri, all_mass, all_pos, all_vel, all_potential, gas_mass
 
 
 
-
 def gravitational_potential(masses, positions, gpos,
                             cut=None,
                             spherical=None,
                             cut_type=None,
-                            superkeys=True, G=47003.1,
+                            superkeys=True, G=43007.1,
                             set_to_value_after_cut=None,
+                            remove_constant_rho = 0, #remove_constant_rho=7.563375e-09
                             spher_nbs=40, spher_nfi=4, spher_nteta=4, has_keys=True):
 
     all_data={}
@@ -299,6 +343,7 @@ def gravitational_potential(masses, positions, gpos,
         if cut_type=="sphere":
             mass_weights[all_data[-1]['SPOS'][:,0]>cut]=0.
         elif cut_type=="cube":
+            printf ("cube cut",e=True)
             mass_weights[np.abs(all_data[-1]['POS '][:,0]-gpos[0])>cut]=0.
             mass_weights[np.abs(all_data[-1]['POS '][:,1]-gpos[1])>cut]=0.
             mass_weights[np.abs(all_data[-1]['POS '][:,2]-gpos[2])>cut]=0.
@@ -333,6 +378,12 @@ def gravitational_potential(masses, positions, gpos,
     spher_all_vols = spher_all_cds**2.*np.sin(spher_all_cts)*shper_delta_rs*shper_delta_ts*shper_delta_fs
     spher_all_rhos = spher_all_ms/spher_all_vols
     spher_all_ms = np.nan_to_num(spher_all_ms)
+
+    if remove_constant_rho>0:
+        print("removing constant rho",remove_constant_rho)
+        spher_all_ms[spher_all_rhos>=remove_constant_rho] -= remove_constant_rho*spher_all_vols[spher_all_rhos>=remove_constant_rho]
+        spher_all_ms[spher_all_rhos<remove_constant_rho] -= 0.
+    
     def generate_fi(spher_b,spher_all_cds,spher_all_cts,spher_all_cfs,spher_all_x,spher_all_y,spher_all_z,spher_all_ms):
         fi=np.ones(spher_all_ds.shape)
         for bin_r in range(len(spher_b[0])-1):
@@ -362,15 +413,26 @@ def gravitational_potential(masses, positions, gpos,
     somma_all_inte = fi[tuple ( bin_all_h.T)]
 
     """ set to zero things outside rcri"""
-    if set_to_value_after_cut:
-        somma_all_inte[all_data[-1]['SPOS'][:,0]>cut] = set_to_value_after_cut
+    if set_to_value_after_cut is not None:
+        if cut_type=="sphere":
+            somma_all_inte[all_data[-1]['SPOS'][:,0]>cut] = set_to_value_after_cut
+        
+        elif cut_type=="cube":
+            print ("cube zeroing")
+            somma_all_inte[np.abs(all_data[-1]['POS '][:,0]-gpos[0])>cut]=0.
+            somma_all_inte[np.abs(all_data[-1]['POS '][:,1]-gpos[1])>cut]=0.
+            somma_all_inte[np.abs(all_data[-1]['POS '][:,2]-gpos[2])>cut]=0.
+
+
+
+
 
 
     all_data[-1]["SPHERICAL_POTE"] = somma_all_inte
     return O(potential = all_data[-1]["SPHERICAL_POTE"])
 
 
-def spinparameter (center, rcri, all_mass, all_pos, all_vel, all_dists, gas_mass, gas_pos, gas_vel, gas_dists, G=47003.1):
+def spinparameter (center, rcri, all_mass, all_pos, all_vel, all_dists, gas_mass, gas_pos, gas_vel, gas_dists, G=43007.1):
     gas =False  if (gas_mass is None or gas_vel is None or gas_pos is None) else True
     gpos = center
     all_data={}
@@ -466,9 +528,9 @@ def memo(maxsize=None):
     return decorator
 
 @memo(maxsize=_cache_size)
-def fof_info(filename, is_snap=False, blocks=None):
+def fof_info(filename, is_snap=False):
     #print("_fof info caching ",filename,is_snap)
-    return g.GadgetFile(filename, is_snap,blocks=blocks)
+    return g.GadgetFile(filename, is_snap)
 
 
 
@@ -486,21 +548,20 @@ class PostProcessing(object):
     n_files = 10
     has_keys = False
     fof_blocks = ['MCRI','GPOS','RCRI']
-    sf_blocks = ['SMST','SPOS','GRNR']
-    snap_all_blocks = ['POS ','MASS']#,'ID  ']
+    sf_blocks = ['SMST','SPOS','GRNR','RHMS']
+    snap_all_blocks = ['POS ','VEL ','MASS']#,'ID  ']
     snap_gas_blocks = ['U   ','TEMP']
     subfind_and_fof_same_file = False
     subfind_files_range = None
     random_subset_size = 2000
     myinfo=None
-    need_gas = False
     @memo()
     def fof_file(self,i_file):
         global fof_info
         filename = '%s.%d'%(self.group_base,i_file)
         #print("CALL from cache", filename)
         
-        f = fof_info(filename, is_snap=False, blocks = self.fof_blocks+self.sf_blocks)
+        f = fof_info(filename, is_snap=False)
 
         if f.info is not None and self.myinfo is None: 
             self.myinfo=f.info
@@ -525,12 +586,13 @@ class PostProcessing(object):
             last_file = self.subfind_files_range[1]
         elif self.subfind_and_fof_same_file:
             first_file = self.i_file-1
+            if first_file<0: first_file=0
             last_file = self.i_file+1
         else:
             first_file = 0
             last_file = self.n_files
-        if first_file<0: first_file=0
-        i1_file=first_file-1 
+        #print('range', (first_file, last_file+1), range(first_file, last_file+1))
+        i1_file=first_file-1 #, last_file+1):
         while True:
             i1_file+=1
             f=self.fof_file(i1_file)
@@ -648,10 +710,7 @@ class PostProcessing(object):
             blocks=self.snap_all_blocks
             ptypes=[1,2]
         else:
-            if self.need_gas:
-                blocks=self.snap_all_blocks+self.snap_gas_blocks
-            else:
-                blocks=self.snap_all_blocks
+            blocks=self.snap_all_blocks+self.snap_gas_blocks
             ptypes=[0,1,4,5]
         all_data = self.read_new_ptypes_blocks_radius(ptypes=ptypes, blocks=blocks,  radius=self.rcri(),join_ptypes=False, only_joined_ptypes=False)
         add_cut(all_data, self.gpos(), self.rcri())
@@ -668,19 +727,20 @@ class PostProcessing(object):
                                     only_joined_ptypes=only_joined_ptypes)
 
     @memo()
-    def c200c(self):
+    def c200c(self, all_ptypes=False):
         #print("dm?", self.dm)
         fof_pos = self.gpos()
         fof_r = self.fof()['RCRI']
-        dm_data = self.read_new()[1]
-
-        dm_mass_data=dm_data['MASS']
-        dm_pos_data=dm_data['POS ']
-        r=nfw_fit(dm_mass_data,dm_pos_data,fof_pos,fof_r)
-        if r is not None:
-            return O(**{"rho0":r.x[0],"c":1./r.x[1],"rs":r.x[1]*fof_r})
+        if all_ptypes:
+            data = self.read_new()[-1]
         else:
-            return O(rho0=np.nan, c=np.nan, rs=np.nan)
+            data = self.read_new()[1]
+
+        mass_data=data['MASS']
+        pos_data=data['POS ']
+        r = O(**nfw_fit(mass_data,pos_data,fof_pos,fof_r))
+        r.rs = fof_r/r.c
+        return r
     @memo()
     def spherical(self,ptype):
         #print (ptype, self.read_new()[ptype]['POS '])
@@ -798,7 +858,60 @@ class PostProcessing(object):
             gas_vel = read_new[0]["VEL "]
             gas_temp = read_new[0]["TEMP"]
             gas_u = read_new[0]["U   "]
-        return  virialness(self.fof()["GPOS"], self.rcri(), all_mass, all_pos, all_vel, all_potential, gas_mass, gas_pos, gas_vel, gas_u, gas_temp, H0=0.1, G=47003.1)
+        return  virialness(self.fof()["GPOS"], self.rcri(), all_mass, all_pos, all_vel, all_potential, gas_mass, gas_pos, gas_vel, gas_u, gas_temp, H0=0.1, G=43007.1)
 
                 
+
+from pint import Context
+from pint import UnitRegistry
+
+ureg_singleton = O()
+ureg_singleton.ureg=None
+
+def ureg(**defaults):
+
+    if ureg_singleton.ureg is None:
+        u = ureg_singleton.ureg = UnitRegistry()
+    else:
+        return ureg_singleton.ureg
+    u.define('Msun = 1.99885e30kg')
+    u.define("hubble = [hubbli]")
+    u.define("scalefactor = [scalefactori]")
+    u.define('gmass = 1e10 Msun/hubble')
+    u.define('cmass = Msun/hubble')
+    u.define('clength = kpc/hubble*scalefactor')
+    u.define('glength = clength')
+    u.define('cvelocity = scalefactor*km/s')
+    u.define('gvelocity_a = (scalefactor**0.5)km/s')
+    u.define('gvelocity_noa = km/s')
+    c = Context('comoving',defaults={"hubble":None,"scalefactor":None})
+    def f_1(u,v,  hubble = None, scalefactor=None):
+        m=v.to(u.clength).magnitude
+        if hubble is not None and scalefactor is not None:
+            return u.kpc*m*scalefactor/hubble
+        else:
+            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
+    def g_1(u,v,  hubble = None ,scalefactor=None):
+        m=v.to(u.cmass).magnitude
+        if hubble is not None :
+            return u.Msun*m /hubble
+        else:
+            raise Exception("hubble=%s "%(str(hubble) ))
+    def f_2(u,v,  hubble = None, scalefactor=None):
+        m=v.to(u.kpc).magnitude
+        if hubble is not None and scalefactor is not None:
+            return u.clength/scalefactor*hubble
+        else:
+            raise Exception("hubble=%s, scalefactor=%s"%(str(hubble), str(scalefactor)))
+    c.add_transformation('[length] * [scalefactori] / [hubbli]', '[length]',f_1)
+    c.add_transformation('[length]','[length] * [scalefactori] / [hubbli]', f_2)
+    c.add_transformation('[mass]  / [hubbli]', '[mass]',g_1)
+
+ 
+    u.add_context(c)
+    #if(len(defaults)>0):
+    #    u.enable_contexts(c,**defaults)
+    u.enable_contexts(c,hubble=.704)
+
+    return u
 
