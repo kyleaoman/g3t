@@ -35,9 +35,10 @@ PY3 = sys.version_info[0] == 3
 
 if PY3:
     string_types = str,
+    _periodic=["POS "]
 else:
     string_types = basestring,
-
+    _periodic=[b"POS "]
 
 def iterable(arg):
     return isinstance(arg, collections.Iterable) and not isinstance(arg, string_types)
@@ -76,7 +77,7 @@ def periodic_axis(x,   periodic=None, center_c=None):
                     dx[maskx1] = (dx-periodic)[maskx1]
                     dx[maskx2] =(dx+periodic)[maskx2]
                     return dx+center_c
-_periodic=["POS "]
+
 
 def join_res(res, blocks,  join_ptypes, only_joined_ptypes, f=None):
         ptypes = [i for i in res if i!=-1]
@@ -104,6 +105,8 @@ def join_res(res, blocks,  join_ptypes, only_joined_ptypes, f=None):
             #for block in iterate(blocks):
             #    for i in res:
             #        print (block, i, res[i][block].shape)
+            if debug:
+                print(res)
             res[-1]['PTYPE']=np.concatenate(tuple(
                 [np.zeros(len(res[i][iterate(blocks)[0]]),dtype=np.int32)+i  for i in res if i!=-1   ]
             ))
@@ -363,6 +366,7 @@ class GadgetFile(object):
         self.endian = ''
         self.format2 = True
         t_part = 0
+        
         fd = open(filename, "rb")
         self.check_format(fd)
 
@@ -474,7 +478,8 @@ class GadgetFile(object):
                     s[1]=_s(s[1])
                     self.info[s[0]]=s     
                     if (debug):
-                        print("block='%s' type='%s' size='%d' ptype=%d %d %d %d %d %d"%(s[0],s[1],s[2],s[3],s[4],s[5],s[6],s[7],s[8]))
+                        printf("block='%s' type='%s' size='%d' ptype=%d %d %d %d %d %d"%(s[0],s[1],s[2],s[3],s[4],s[5],s[6],s[7],s[8]),e =True
+)
                 fd.seek(oldpos)
                 success=True
                 
@@ -608,7 +613,7 @@ class GadgetFile(object):
             p_toread = parts
         fd = open(self._filename, 'rb')
         if (debug):
-            print("partlen=", cur_block.partlen)
+            printf("partlen=%d"%cur_block.partlen,e=True)
         fd.seek(cur_block.start + int(cur_block.partlen * p_start), 0)
         # This is just so that we can get a size for the type
         dt = np.dtype(cur_block.data_type)
@@ -729,7 +734,7 @@ class GadgetFile(object):
             for ptype in _ptypes:
                 if ptype not in res:
                     res[ptype]={}
-                f_data = self.read(block, ptype)
+                f_data = self.read(block, ptype, center=center)
                 res[ptype][block] = f_data
 
         return  join_res(res, blocks, join_ptypes, only_joined_ptypes, f=self)
@@ -820,9 +825,11 @@ class GadgetFile(object):
        if(debug):
            print(f_data.shape, cols, len(f_data)/cols)
        f_data.dtype = dtype
+
        if(debug):
            print(block, ptype, f_data.shape,'cols', cols, 'f_data',len(f_data), 'f_data/cols', len(f_data)/cols)
        if cols>1: f_data.shape = (int(len(f_data)/cols),cols)
+
        if periodic is not None and block in _periodic and center is not None:
            f_data = periodic_position(f_data, periodic=self.header.BoxSize, center=center)
        return f_data
@@ -1139,12 +1146,23 @@ def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center
     res={}
     ifiles=find_files_for_keys(mmyname,keylist)
     f=None
+    if iterable(blocks): _blocks=blocks
+    else: _blocks = [blocks]
+    if iterable(ptypes):
+        _ptypes=ptypes
+    else:
+        if ptypes==-1:
+            only_joined_ptypes=True
+            _ptypes=[0,1,2,3,4,5]
+        else:
+            _ptypes = [ptypes]
+
     for ifile in ifiles:
       myname=mmyname+'.'+str(ifile)+'.key'
       mysnap=mmyname+'.'+str(ifile)
       gkeyf=GadgetFile(myname,is_snap=False)
       f=GadgetFile(mysnap, is_snap=False)
-      for ptype in iterate(ptypes):
+      for ptype in iterate(_ptypes):
         if ptype not in res:
             res[ptype]={}
         tr=gkeyf.get_block_parts("KEY ",ptype)
@@ -1179,7 +1197,7 @@ def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center
         okey=okey[use_block]
         pkey=pkey[use_block]
 
-        for block in iterate(blocks):
+        for block in iterate(_blocks):
             if block!='MASS' and not f.blocks[block].ptypes[ptype]:
                 continue
             if block not in res[ptype]:
@@ -1193,12 +1211,15 @@ def read_particles_given_key(mmyname,blocks,keylist, ptypes,periodic=True,center
                 p=pkey[i]
                 x=f.read(block, ptype, p,p_start=o, center=center)
                 res[ptype][block].append(x)
-    for ptype in iterate(ptypes):
+    for ptype in iterate(_ptypes):
         for block in iterate(blocks):
             if block in res[ptype] and len(res[ptype][block])>0:
                 res[ptype][block] = np.concatenate(res[ptype][block])
             else:
                 res[ptype][block] = np.array([])
+    if debug:
+        print(res)
+    
     return join_res(res, blocks, join_ptypes, only_joined_ptypes, f=f)
 
 
@@ -1207,7 +1228,8 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
         if not os.path.isfile(snap_file_name+'.key.index'):
             has_super_index=False
 
-        #print("1", "has_super_index",  has_super_index, "has_keys", has_keys)
+        if debug:
+            print("1", "has_super_index",  has_super_index, "has_keys", has_keys)
             
         if   not   os.path.isfile(snap_file_name+".0.key"):
             has_keys = False
@@ -1227,7 +1249,10 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
         corner=hkey.header.mass[0:3]
         fac=hkey.header.mass[3]
         bits=hkey.header.flag_feedback
-        #if debug: print hkey.header.__dict__
+
+        if debug: 
+            print hkey.header.__dict__
+            print (" r search ",d)
         #print(fr,to)
         fr=np.array(list(map(lambda x: min(x[0],x[1]), np.array([fr,to]).T)))
         to=np.array(list(map(lambda x: max(x[0],x[1]), np.array([fr,to]).T)))
@@ -1246,8 +1271,10 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
             for j in range(ifr[1]-2,ito[1]+1):
                 for k in range(ifr[2]-2,ito[2]+1):
                     keylist.append(peano_hilbert_key(hkey, i,j,k, integer_pos=True))
-
-        #print("4", "has_super_index",  has_super_index, "has_keys", has_keys)
+                    if debug: 
+                        print (i,j,k)
+        if debug:
+            print("4", "has_super_index",  has_super_index, "has_keys", has_keys)
         if has_keys:
             return read_particles_given_key(snap_file_name,blocks,keylist,ptypes=ptypes,
                                             center=ce,periodic=hkey.header.BoxSize, join_ptypes=join_ptypes, only_joined_ptypes=only_joined_ptypes)
@@ -1260,4 +1287,4 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
 
 
 def read_new(filename, blocks, ptypes, join_ptypes=True, only_joined_ptypes=True, periodic=_periodic, center=None, is_snap=False):
-    return GadgetFile(filename, is_snap=is_snap).read_new(blocks, ptypes, join_ptypes=True, only_joined_ptypes=True, periodic=_periodic, center=None)
+    return GadgetFile(filename, is_snap=is_snap).read_new(blocks, ptypes, join_ptypes=True, only_joined_ptypes=True, periodic=_periodic, center=center)

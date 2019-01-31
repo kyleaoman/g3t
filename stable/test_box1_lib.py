@@ -21,7 +21,7 @@ snapbase = '/HydroSims/Magneticum/Box1a/mr_bao/snapdir_144/snap_144'
 groupbase = '/HydroSims/Magneticum/Box1a/mr_bao/groups_144/sub_144'
 from_icluster = 0 #id of first cluster to analyse
 to_icluster = 11494 #id of last cluster to analyse
-
+h=.704
 """ BEGIN """
 
 printf("#cluster_id mcri[Msun] rcri[kpc] c200c_dm c200c_all\n")
@@ -47,8 +47,8 @@ for ifile  in range(nfiles):
             
         )
         cluster_id = cluster_data.cluster_id
-        mcri = cluster_data.mcri()*1e10/.72
-        rcri = cluster_data.rcri()/.72
+        mcri = cluster_data.mcri()*1e10/h
+        rcri = cluster_data.rcri()/h
         c200c_dm = cluster_data.c200c().c
         c200c_all = cluster_data.c200c(all_ptypes=True).c
-        printf("%d %.3e %.3f %.3f %.3f \n"%(cluster_id, mcri, rcri, c200c_dm, c200c_all))
+        printf("%d %.5e %.3f %.3f %.3f \n"%(cluster_id, mcri, rcri, c200c_dm, c200c_all))
