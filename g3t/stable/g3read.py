@@ -1251,7 +1251,7 @@ def read_particles_in_box(snap_file_name,center,d,blocks,ptypes,has_super_index=
         bits=hkey.header.flag_feedback
 
         if debug: 
-            print hkey.header.__dict__
+            print(hkey.header.__dict__)
             print (" r search ",d)
         #print(fr,to)
         fr=np.array(list(map(lambda x: min(x[0],x[1]), np.array([fr,to]).T)))
